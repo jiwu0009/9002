@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HYVBE — FanCreate × IdolVerse AR</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #f2f2f7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 0;
+    }
+    .phone {
+      width: 390px;
+      min-height: 844px;
+      background: #fff;
+      border-radius: 34px;
+      overflow: hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,.18);
+      position: relative;
+    }
+    .screen {
+      display: none;
+      min-height: 844px;
+      background: linear-gradient(180deg,#fff 0%,#faf8ff 42%,#fff 100%);
+      padding: 10px 16px 92px;
+      position: relative;
+    }
+    .screen.active { display: block; }
+    .status-bar {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status-right { display: flex; gap: 7px; align-items: center; }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 2px 14px;
+    }
+    .logo { font-size: 25px; font-weight: 800; letter-spacing: -1.2px; color: #151515; }
+    .logo span { color: #7c3cff; }
+    .round-btn, .mail {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid #ece8f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: #fff;
+      color: #111;
+      box-shadow: 0 4px 14px rgba(124,60,255,.08);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .back { color: #7c3cff; font-size: 22px; font-weight: 900; }
+    .hero, .dark-hero, .profile-card {
+      position: relative;
+      border-radius: 28px;
+      padding: 22px 20px 20px;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(124,60,255,.25);
+    }
+    .hero {
+      min-height: 178px;
+      background:
+        radial-gradient(circle at 82% 20%,rgba(255,255,255,.95) 0 8%,transparent 9%),
+        radial-gradient(circle at 18% 88%,rgba(255,255,255,.75) 0 10%,transparent 11%),
+        linear-gradient(135deg,#6b48ff 0%,#9b5cff 44%,#ff83c5 100%);
+    }
+    .dark-hero {
+      min-height: 212px;
+      background:
+        radial-gradient(circle at 78% 18%,rgba(255,255,255,.95) 0 8%,transparent 9%),
+        radial-gradient(circle at 18% 88%,rgba(255,255,255,.75) 0 10%,transparent 11%),
+        linear-gradient(135deg,#181818 0%,#3e2d79 45%,#814dff 74%,#ff83c5 100%);
+    }
+    .profile-card {
+      min-height: 216px;
+      background:
+        radial-gradient(circle at 80% 18%,rgba(255,255,255,.95) 0 8%,transparent 9%),
+        radial-gradient(circle at 18% 88%,rgba(255,255,255,.75) 0 10%,transparent 11%),
+        linear-gradient(135deg,#6b48ff 0%,#9b5cff 46%,#ff83c5 100%);
+    }
+    .hero:after, .dark-hero:after, .profile-card:after {
+      content:"";
+      position:absolute;
+      width:156px;
+      height:156px;
+      right:-48px;
+      bottom:-50px;
+      border-radius:38px;
+      background:rgba(255,255,255,.18);
+      transform:rotate(18deg);
+    }
+    .badge-row { display: flex; gap: 8px; margin-bottom: 16px; position: relative; z-index: 1; }
+    .badge {
+      font-size: 11px;
+      line-height: 1;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.22);
+      border: 1px solid rgba(255,255,255,.35);
+      font-weight: 700;
+    }
+    .hero h1, .dark-hero h1 {
+      position: relative;
+      z-index: 1;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -1.2px;
+      max-width: 270px;
+      margin-bottom: 10px;
+    }
+    .hero p, .dark-hero p {
+      position: relative;
+      z-index: 1;
+      font-size: 13px;
+      line-height: 1.45;
+      opacity: .94;
+      margin-bottom: 18px;
+      max-width: 292px;
+    }
+    .hero-actions { position: relative; z-index: 1; display: flex; gap: 10px; flex-wrap: wrap; }
+    button, .tap {
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .primary-btn, .secondary-btn {
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .primary-btn { background: #fff; color: #6f38ff; }
+    .secondary-btn { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.35); }
+    .section { margin-top: 22px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title h2 { font-size: 17px; letter-spacing: -.2px; }
+    .section-title button, .section-title span {
+      font-size: 12px;
+      font-weight: 700;
+      color: #7c3cff;
+      background: transparent;
+    }
+    .artist-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .artist-scroll::-webkit-scrollbar { display: none; }
+    .artist { min-width: 58px; text-align: center; cursor: pointer; }
+    .avatar, .post-avatar {
+      background: linear-gradient(145deg,#141414,#3e2d79 55%,#814dff);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:850;
+      box-shadow:0 8px 18px rgba(62,45,121,.22);
+    }
+    .avatar { width:58px; height:58px; border-radius:19px; font-size:12px; margin-bottom:7px; }
+    .artist p { font-size: 11px; color: #222; font-weight: 650; }
+    .feed-list, .menu-list, .mission-list { display: flex; flex-direction: column; gap: 14px; }
+    .post-card, .card, .menu-item {
+      border-radius: 24px;
+      background: #fff;
+      padding: 15px;
+      box-shadow: 0 8px 24px rgba(40,20,90,.08);
+      border: 1px solid #f0ecfa;
+    }
+    .post-top { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .post-avatar { width:45px; height:45px; border-radius:16px; font-size:12px; flex:0 0 auto; }
+    .post-avatar.nj { background: linear-gradient(145deg,#3fc7ff,#ff7bd4); }
+    .post-avatar.svt { background: linear-gradient(145deg,#83a9ff,#ffb4d6); }
+    .post-meta { flex: 1; }
+    .post-meta h3 { font-size: 14px; margin-bottom: 2px; }
+    .post-meta p { font-size: 11px; color: #777; }
+    .tag {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:6px 9px;
+      border-radius:999px;
+      background:#f5f0ff;
+      color:#7c3cff;
+      font-size:10px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .post-body { font-size:13px; line-height:1.55; color:#1f1f1f; margin-bottom:12px; }
+    .media-placeholder, .image-box {
+      width:100%;
+      border-radius:18px;
+      background:linear-gradient(135deg,#f6f2ff,#fff2fb);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#7c3cff;
+      border:1px dashed #d8c8ff;
+    }
+    .media-placeholder { height:96px; font-size:28px; margin:12px 0; }
+    .image-box { height:150px; font-size:42px; margin-bottom:14px; }
+    .post-actions { display:flex; align-items:center; justify-content:space-between; color:#6f6f77; font-size:12px; font-weight:700; padding-top:2px; gap: 6px; }
+    .post-actions div { display:flex; gap:14px; }
+    .inline-action { color:#7c3cff; background:transparent; font-weight:800; }
+    .bottom-nav {
+      position:absolute;
+      left:0;
+      bottom:0;
+      width:100%;
+      height:78px;
+      background:rgba(255,255,255,.92);
+      backdrop-filter:blur(18px);
+      border-top:1px solid #f0ecfa;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      padding:8px 8px 14px;
+    }
+    .nav-item {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+      font-size:10px;
+      font-weight:750;
+      color:#8b8891;
+      background:transparent;
+    }
+    .nav-item .icon { font-size:17px; line-height:1; }
+    .nav-item.active { color:#7c3cff; }
+    .page-label { position:absolute; right:18px; bottom:86px; color:#c2bdcb; font-size:11px; font-weight:750; }
+    .tool-grid, .stat-grid, .creation-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .tool-card { min-height:132px; display:flex; flex-direction:column; justify-content:space-between; }
+    .tool-icon, .menu-icon {
+      width:42px;
+      height:42px;
+      border-radius:16px;
+      background:linear-gradient(145deg,#f6f2ff,#fff2fb);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#7c3cff;
+      font-size:19px;
+      border:1px solid #eee7ff;
+      flex:0 0 auto;
+    }
+    .card h3, .tool-card h3, .menu-text h3 { font-size:14px; margin-bottom:5px; }
+    .card p, .tool-card p, .menu-text p { font-size:11px; line-height:1.38; color:#77727f; }
+    .profile-top { position:relative; z-index:1; display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+    .profile-avatar {
+      width:72px;
+      height:72px;
+      border-radius:24px;
+      background:rgba(255,255,255,.2);
+      border:1px solid rgba(255,255,255,.42);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:28px;
+      font-weight:850;
+    }
+    .profile-info h1 { font-size:24px; line-height:1.1; letter-spacing:-.8px; margin-bottom:6px; }
+    .profile-info p { font-size:12px; opacity:.92; line-height:1.4; }
+    .level-badge {
+      position:relative;
+      z-index:1;
+      display:inline-flex;
+      padding:8px 11px;
+      border-radius:999px;
+      background:rgba(255,255,255,.22);
+      border:1px solid rgba(255,255,255,.35);
+      font-size:12px;
+      font-weight:750;
+      margin-bottom:14px;
+    }
+    .profile-stats { position:relative; z-index:1; display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+    .stat-item {
+      border-radius:18px;
+      background:rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.28);
+      padding:10px 8px;
+      text-align:center;
+    }
+    .stat-item strong, .mini-stat strong { display:block; font-size:16px; margin-bottom:3px; }
+    .stat-item span, .mini-stat span { font-size:10px; font-weight:700; opacity:.88; }
+    .menu-item { display:flex; align-items:center; gap:12px; }
+    .menu-text { flex:1; }
+    .menu-arrow { color:#7c3cff; font-size:18px; font-weight:800; }
+    .space-scroll { display:flex; gap:12px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+    .space-card { min-width:152px; min-height:190px; }
+    .space-image {
+      height:104px;
+      border-radius:18px;
+      background:linear-gradient(145deg,#6b48ff,#ff83c5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:30px;
+      margin-bottom:11px;
+    }
+    .space-image.dark { background:linear-gradient(145deg,#181818,#3e2d79 55%,#814dff); }
+    .space-image.blue { background:linear-gradient(145deg,#3fc7ff,#7c3cff 55%,#ff7bd4); }
+    .space-info { display:flex; justify-content:space-between; font-size:10px; font-weight:750; color:#7c3cff; margin-top:8px; }
+    .input-card textarea, .input-card input, .input-card select {
+      width:100%;
+      border:1px solid #eee7ff;
+      background:#faf8ff;
+      border-radius:16px;
+      padding:12px;
+      font-family:inherit;
+      font-size:13px;
+      margin-top:8px;
+      outline:none;
+    }
+    .purple-pill {
+      display:inline-flex;
+      border-radius:999px;
+      background:#7c3cff;
+      color:#fff;
+      padding:10px 14px;
+      font-size:13px;
+      font-weight:750;
+      margin-top:12px;
+      border:none;
+    }
+    .toast {
+      position:absolute;
+      left:18px;
+      right:18px;
+      bottom:90px;
+      background:#17151f;
+      color:#fff;
+      border-radius:18px;
+      padding:13px 14px;
+      font-size:12px;
+      line-height:1.35;
+      display:none;
+      z-index:20;
+      box-shadow:0 14px 30px rgba(0,0,0,.22);
+    }
+    .toast.show { display:block; }
+
+    .ar-live-shell {
+      margin-top: 6px;
+      border-radius: 30px;
+      min-height: 680px;
+      overflow: hidden;
+      position: relative;
+      background: #111;
+      box-shadow: 0 14px 34px rgba(40,20,90,.22);
+    }
+
+.ar-camera-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.room-pan {
+  position: absolute;
+  inset: -12%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  will-change: transform, opacity;
+  animation: roomFloat 12s ease-in-out infinite;
+}
+
+.room-pan-1 {
+  background-image:
+    linear-gradient(rgba(20,18,30,.12), rgba(20,18,30,.42)),
+    url('room-placeholder.jpg');
+}
+
+.room-pan-2 {
+  background-image:
+    linear-gradient(rgba(20,18,30,.12), rgba(20,18,30,.42)),
+    url('room-after-sayhi.jpg');
+}
+
+.room-pan.active {
+  opacity: 1;
+}
+
+@keyframes roomFloat {
+  0% {
+    transform: scale(1.15) translate(0px, 28px);
+  }
+  20% {
+    transform: scale(1.22) translate(-18px, 18px);
+  }
+  40% {
+    transform: scale(1.18) translate(20px, 12px);
+  }
+  60% {
+    transform: scale(1.24) translate(16px, 42px);
+  }
+  80% {
+    transform: scale(1.19) translate(-20px, 46px);
+  }
+  100% {
+    transform: scale(1.15) translate(0px, 28px);
+  }
+}
+
+
+    .scan-line {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 132px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
+      box-shadow: 0 0 18px rgba(255,255,255,.8);
+      animation: scanMove 3s ease-in-out infinite;
+      z-index: 4;
+    }
+
+    @keyframes scanMove {
+      0% { transform: translateY(0); opacity: .35; }
+      50% { transform: translateY(360px); opacity: 1; }
+      100% { transform: translateY(0); opacity: .35; }
+    }
+
+    .ar-top-ui {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ar-glass-btn,
+    .ar-status-pill,
+    .ar-chat-bubble,
+    .ar-bottom-panel,
+    .ar-action-chip {
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,.32);
+      background: rgba(255,255,255,.18);
+      color: #fff;
+    }
+
+    .ar-glass-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 21px;
+      font-weight: 900;
+    }
+
+    .ar-status-pill {
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .ar-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #8cffd1;
+      box-shadow: 0 0 12px rgba(140,255,209,.95);
+    }
+
+    .ar-scan-frame {
+      position: absolute;
+      left: 34px;
+      right: 34px;
+      top: 112px;
+      height: 365px;
+      border: 1px solid rgba(255,255,255,.45);
+      border-radius: 26px;
+      z-index: 3;
+      box-shadow: inset 0 0 40px rgba(124,60,255,.18), 0 0 28px rgba(255,255,255,.16);
+    }
+
+    .ar-scan-frame::before,
+    .ar-scan-frame::after {
+      content: "";
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      border-color: rgba(255,255,255,.95);
+      border-style: solid;
+    }
+
+    .ar-scan-frame::before {
+      left: 14px;
+      top: 14px;
+      border-width: 3px 0 0 3px;
+      border-radius: 10px 0 0 0;
+    }
+
+    .ar-scan-frame::after {
+      right: 14px;
+      bottom: 14px;
+      border-width: 0 3px 3px 0;
+      border-radius: 0 0 10px 0;
+    }
+
+    .idol-layer {
+      position: absolute;
+      left: 50%;
+      top: 204px;
+      transform: translateX(-50%);
+      width: 178px;
+      height: 260px;
+      z-index: 5;
+      border-radius: 32px;
+      background:
+        url('idol-placeholder.png') center bottom / contain no-repeat,
+        linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.06));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.9);
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+      text-shadow: 0 2px 10px rgba(0,0,0,.35);
+      filter: drop-shadow(0 16px 28px rgba(0,0,0,.35));
+      animation: idolFloat 3.4s ease-in-out infinite;
+
+}
+.idol-layer.hide {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.85);
+  pointer-events: none;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  animation: none;
+}
+
+    @keyframes idolFloat {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-10px); }
+    }
+
+    .ar-chat-bubble {
+      position: absolute;
+      left: 30px;
+      right: 30px;
+      top: 500px;
+      z-index: 7;
+      border-radius: 22px;
+      padding: 13px 14px;
+      box-shadow: 0 12px 24px rgba(0,0,0,.18);
+    }
+
+    .ar-chat-bubble h3 {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .ar-chat-bubble p {
+      font-size: 12px;
+      line-height: 1.42;
+      opacity: .92;
+    }
+
+    .ar-bottom-panel {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      z-index: 7;
+      border-radius: 26px;
+      padding: 14px;
+      box-shadow: 0 14px 30px rgba(0,0,0,.24);
+    }
+
+    .ar-bottom-panel h2 {
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+
+    .ar-bottom-panel p {
+      font-size: 11px;
+      line-height: 1.4;
+      opacity: .86;
+      margin-bottom: 12px;
+    }
+
+    .ar-action-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .ar-action-chip {
+      border-radius: 18px;
+      padding: 10px 7px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .ar-particle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 0 16px rgba(255,255,255,.75);
+      z-index: 4;
+      animation: particleFloat 4s ease-in-out infinite;
+    }
+
+    .ar-particle.one { width: 9px; height: 9px; left: 58px; top: 210px; }
+    .ar-particle.two { width: 12px; height: 12px; right: 62px; top: 178px; animation-delay: .8s; }
+    .ar-particle.three { width: 7px; height: 7px; left: 92px; top: 390px; animation-delay: 1.4s; }
+    .ar-particle.four { width: 10px; height: 10px; right: 92px; top: 408px; animation-delay: 2s; }
+
+    @keyframes particleFloat {
+      0%, 100% { transform: translateY(0) scale(1); opacity: .55; }
+      50% { transform: translateY(-16px) scale(1.25); opacity: 1; }
+    }
+
+
+    .artist-desc-card {
+      min-height: 154px;
+    }
+
+    .artist-desc-card .avatar {
+      margin-bottom: 10px;
+    }
+
+    .studio-panel {
+      border-radius: 26px;
+      background: #ffffff;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(40,20,90,.08);
+      border: 1px solid #f0ecfa;
+    }
+
+    .studio-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .studio-cover {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: linear-gradient(145deg,#181818,#3e2d79 55%,#814dff);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 12px 24px rgba(62,45,121,.18);
+      flex: 0 0 auto;
+    }
+
+    .studio-header h3 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .studio-header p {
+      font-size: 11px;
+      line-height: 1.35;
+      color: #77727f;
+    }
+
+    .studio-control {
+      margin-top: 12px;
+      border-radius: 20px;
+      background: #faf8ff;
+      border: 1px solid #eee7ff;
+      padding: 12px;
+    }
+
+    .studio-control label,
+    .publish-option label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #7c3cff;
+      margin-bottom: 7px;
+    }
+
+    .studio-control input,
+    .studio-control textarea,
+    .studio-control select {
+      width: 100%;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: inherit;
+      font-size: 13px;
+      color: #111;
+      resize: none;
+    }
+
+    .studio-time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      color: #77727f;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .studio-bar {
+      flex: 1;
+      height: 7px;
+      border-radius: 999px;
+      background: #eee7ff;
+      overflow: hidden;
+    }
+
+    .studio-bar span {
+      display: block;
+      width: 62%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg,#7c3cff,#ff83c5);
+    }
+
+    .hot-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hot-thumb {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: linear-gradient(145deg,#3fc7ff,#ff7bd4);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex: 0 0 auto;
+    }
+
+    .publish-option {
+      border-radius: 22px;
+      background: #ffffff;
+      border: 1px solid #f0ecfa;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(40,20,90,.08);
+      margin-bottom: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .publish-radio {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #7c3cff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #7c3cff;
+      font-size: 12px;
+      font-weight: 900;
+      flex: 0 0 auto;
+      margin-top: 2px;
+    }
+
+    .publish-option h3 {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .publish-option p {
+      font-size: 11px;
+      line-height: 1.36;
+      color: #77727f;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .tag-chip {
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #f5f0ff;
+      color: #7c3cff;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .theme-chip-row,
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+
+    .theme-chip,
+    .filter-chip {
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: #f5f0ff;
+      color: #7c3cff;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+      border: 1px solid #eee7ff;
+    }
+
+    .content-item,
+    .narrative-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      border-radius: 22px;
+      background: #ffffff;
+      border: 1px solid #f0ecfa;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(40,20,90,.08);
+    }
+
+    .content-thumb {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: linear-gradient(145deg,#181818,#3e2d79 55%,#814dff);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    .content-meta,
+    .narrative-meta {
+      flex: 1;
+    }
+
+    .content-meta h3,
+    .narrative-meta h3 {
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .content-meta p,
+    .narrative-meta p {
+      font-size: 10px;
+      color: #77727f;
+      line-height: 1.3;
+    }
+
+    .selected-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #7c3cff;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .sticky-bottom-card {
+      position: sticky;
+      bottom: 86px;
+      z-index: 12;
+      margin-top: 14px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(18px);
+      border: 1px solid #f0ecfa;
+      box-shadow: 0 12px 26px rgba(40,20,90,.12);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .preview-box {
+      height: 190px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(255,255,255,.45), transparent 20%),
+        linear-gradient(145deg,#181818,#3e2d79 55%,#814dff);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: inset 0 0 44px rgba(255,255,255,.12);
+      margin-bottom: 14px;
+    }
+
+    .preview-box strong {
+      font-size: 18px;
+    }
+
+    .setting-card {
+      border-radius: 22px;
+      background: #ffffff;
+      border: 1px solid #f0ecfa;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(40,20,90,.08);
+      margin-bottom: 12px;
+    }
+
+    .setting-card h3 {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .setting-card p {
+      font-size: 11px;
+      color: #77727f;
+      line-height: 1.36;
+    }
+
+
+    /* ---- Sky Blue Visual Refresh ---- */
+    :root {
+      --sky: #aee8ff;
+      --sky-soft: #e8f8ff;
+      --sky-deep: #4aaed6;
+      --ink: #14313d;
+      --muted: #6b7f87;
+      --cream: #fff6e8;
+      --peach: #ffd8c5;
+      --glass: rgba(255,255,255,.62);
+      --glass-strong: rgba(255,255,255,.78);
+      --line: rgba(103,180,211,.22);
+      --shadow: 0 18px 45px rgba(69, 154, 190, .18);
+      --soft-shadow: 0 10px 30px rgba(69, 154, 190, .12);
+    }
+
+    body {
+      color: var(--ink);
+      background: #dff5ff;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      pointer-events: none;
+      z-index: -1;
+      border-radius: 999px;
+      filter: blur(0.2px);
+      opacity: .72;
+      animation: bubbleDrift 14s ease-in-out infinite;
+    }
+
+    body::before {
+      width: 360px;
+      height: 360px;
+      left: -120px;
+      top: 40px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), transparent 38%),
+        radial-gradient(circle at 70% 70%, rgba(255,216,197,.65), transparent 44%),
+        rgba(174,232,255,.38);
+    }
+
+    body::after {
+      width: 260px;
+      height: 260px;
+      right: -70px;
+      bottom: 70px;
+      background:
+        radial-gradient(circle at 35% 35%, rgba(255,255,255,.88), transparent 40%),
+        rgba(255,246,232,.58);
+      animation-delay: -5s;
+    }
+
+    @keyframes bubbleDrift {
+      0%, 100% { transform: translate3d(0,0,0) scale(1); }
+      50% { transform: translate3d(18px,-22px,0) scale(1.04); }
+    }
+
+    .phone {
+      background: rgba(255,255,255,.68);
+      border: 1px solid rgba(255,255,255,.78);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px);
+    }
+
+    .screen {
+      background:
+        radial-gradient(circle at 16% 12%, rgba(255,255,255,.86) 0 8%, transparent 9%),
+        radial-gradient(circle at 86% 18%, rgba(255,216,197,.42) 0 8%, transparent 9%),
+        radial-gradient(circle at 72% 72%, rgba(174,232,255,.35) 0 11%, transparent 12%),
+        #eefaff;
+      color: var(--ink);
+    }
+
+    .logo {
+      color: var(--ink);
+      letter-spacing: -1px;
+    }
+
+    .logo span {
+      color: var(--sky-deep);
+    }
+
+    .round-btn, .mail {
+      background: rgba(255,255,255,.66);
+      border: 1px solid var(--line);
+      color: var(--sky-deep);
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero,
+    .dark-hero,
+    .profile-card,
+    .studio-panel {
+      color: var(--ink);
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .hero::after,
+    .dark-hero::after,
+    .profile-card::after {
+      background: rgba(174,232,255,.32);
+      border: 1px solid rgba(255,255,255,.46);
+    }
+
+    .hero h1,
+    .dark-hero h1,
+    .profile-info h1 {
+      color: var(--ink);
+      letter-spacing: -1.1px;
+    }
+
+    .hero p,
+    .dark-hero p,
+    .profile-info p {
+      color: var(--muted);
+      opacity: 1;
+    }
+
+    .badge {
+      background: rgba(255,246,232,.82);
+      border: 1px solid rgba(255,216,197,.95);
+      color: #9b644d;
+    }
+
+    .primary-btn,
+    .purple-pill {
+      background: var(--sky-deep);
+      color: white;
+      border: 1px solid rgba(255,255,255,.45);
+      box-shadow: 0 8px 20px rgba(74,174,214,.22);
+    }
+
+    .secondary-btn {
+      background: rgba(255,255,255,.58);
+      color: var(--sky-deep);
+      border: 1px solid var(--line);
+    }
+
+    .post-card,
+    .card,
+    .menu-item,
+    .setting-card,
+    .publish-option,
+    .content-card,
+    .build-item {
+      background: var(--glass-strong);
+      border: 1px solid rgba(255,255,255,.86);
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .post-body,
+    .card p,
+    .tool-card p,
+    .menu-text p,
+    .setting-card p,
+    .content-meta,
+    .build-item p {
+      color: var(--muted);
+    }
+
+    .avatar,
+    .post-avatar,
+    .studio-cover,
+    .tool-icon,
+    .menu-icon,
+    .hot-thumb,
+    .publish-radio {
+      background: #dff5ff;
+      color: var(--sky-deep);
+      border: 1px solid rgba(255,255,255,.72);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .post-avatar.nj,
+    .post-avatar.svt,
+    .space-image,
+    .space-image.dark,
+    .space-image.blue,
+    .preview-box {
+      background: #dff5ff;
+      color: var(--sky-deep);
+      border: 1px solid rgba(255,255,255,.72);
+    }
+
+    .tag,
+    .tag-chip,
+    .theme-chip {
+      background: var(--cream);
+      color: #9b644d;
+      border: 1px solid rgba(255,216,197,.92);
+    }
+
+    .theme-chip.active,
+    .filter-chip.active,
+    .content-check,
+    .build-number {
+      background: var(--sky-deep);
+      color: #fff;
+      border-color: var(--sky-deep);
+    }
+
+    .bottom-nav {
+      background: rgba(255,255,255,.72);
+      border-top: 1px solid rgba(255,255,255,.86);
+      backdrop-filter: blur(20px);
+    }
+
+    .nav-item {
+      color: #87a2ad;
+    }
+
+    .nav-item.active,
+    .inline-action,
+    .section-title button,
+    .section-title span,
+    .menu-arrow {
+      color: var(--sky-deep);
+    }
+
+    .media-placeholder,
+    .image-box {
+      background: rgba(255,255,255,.45);
+      border: 1px dashed rgba(74,174,214,.35);
+      color: var(--sky-deep);
+    }
+
+    .studio-bar,
+    .progress-wrap {
+      background: rgba(74,174,214,.16);
+    }
+
+    .studio-bar span,
+    .progress-bar {
+      background: var(--sky-deep);
+    }
+
+    .ar-live-shell.simple-scan {
+      background: #e9f8ff;
+      border: 1px solid rgba(255,255,255,.78);
+      box-shadow: var(--shadow);
+    }
+
+    .ar-glass-btn,
+    .ar-status-pill {
+      background: rgba(255,255,255,.52);
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,.78);
+    }
+
+    .scan-line {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
+      box-shadow: 0 0 18px rgba(174,232,255,.95);
+    }
+
+    .ar-scan-frame {
+      border-color: rgba(255,255,255,.72);
+      box-shadow: inset 0 0 44px rgba(174,232,255,.28), 0 0 28px rgba(255,255,255,.38);
+    }
+
+    .ar-scan-frame::before,
+    .ar-scan-frame::after {
+      border-color: rgba(255,255,255,.96);
+    }
+
+    .toast {
+      background: rgba(20,49,61,.86);
+      backdrop-filter: blur(16px);
+    }
+
+
+
+    /* ---- Interaction fixes ---- */
+    .content-item { cursor: pointer; }
+    .content-thumb {
+      background: rgba(255,255,255,.72) !important;
+      color: var(--sky-deep) !important;
+      border: 1px solid rgba(74,174,214,.22) !important;
+      font-size: 10px !important;
+      line-height: 1.18;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: var(--soft-shadow);
+    }
+    .content-item.selected {
+      border-color: rgba(74,174,214,.48) !important;
+      background: rgba(255,255,255,.86) !important;
+    }
+    .select-toggle {
+      min-width: 68px;
+      border-radius: 999px;
+      padding: 7px 9px;
+      background: rgba(255,246,232,.88);
+      border: 1px solid rgba(255,216,197,.92);
+      color: #9b644d;
+      font-size: 10px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .content-item.selected .select-toggle {
+      min-width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--sky-deep);
+      color: #fff;
+      border-color: var(--sky-deep);
+    }
+    .preview-box {
+      background: rgba(255,255,255,.62) !important;
+      color: var(--ink) !important;
+      border: 1px solid rgba(255,255,255,.86) !important;
+      box-shadow: var(--soft-shadow) !important;
+    }
+    .preview-box strong { font-size: 15px !important; }
+    .access-option { cursor: pointer; }
+    .access-option.selected {
+      border-color: rgba(74,174,214,.55) !important;
+      background: rgba(255,255,255,.9) !important;
+      box-shadow: 0 12px 28px rgba(74,174,214,.18) !important;
+    }
+    .access-option .publish-radio {
+      background: rgba(255,255,255,.82) !important;
+      border-color: rgba(74,174,214,.35) !important;
+      color: var(--sky-deep) !important;
+    }
+    .access-option.selected .publish-radio {
+      background: var(--sky-deep) !important;
+      color: #fff !important;
+      border-color: var(--sky-deep) !important;
+    }
+    .interactive-ar .ar-chat-bubble,
+    .interactive-ar .ar-bottom-panel,
+    .interactive-ar .ar-action-chip,
+    .interactive-ar .ar-glass-btn,
+    .interactive-ar .ar-status-pill {
+      background: rgba(255,255,255,.26);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.42);
+      box-shadow: 0 12px 30px rgba(0,0,0,.18);
+    }
+    .interactive-ar .ar-bottom-panel p,
+    .interactive-ar .ar-chat-bubble p { color: rgba(255,255,255,.88); }
+    .simple-scan .ar-camera-bg .room-pan-2,
+    .simple-scan .idol-layer,
+    .simple-scan .ar-chat-bubble,
+    .simple-scan .ar-bottom-panel,
+    .simple-scan .ar-particle { display: none !important; }
+
+    @media(max-width:430px) {
+      body {
+        background: #eefaff;
+      }
+    }
+
+    @media(max-width:430px){ body{padding:0;background:#eefaff;} .phone{width:100vw;min-height:100vh;border-radius:0;box-shadow:none;} .screen{min-height:100vh;} }
+  
+
+    /* ===== Visual refresh: sky-blue glass UI with in-phone animated bubbles ===== */
+    :root {
+      --sky: #7fd7ff;
+      --sky-soft: #dff6ff;
+      --sky-pale: #f1fbff;
+      --sky-deep: #249ed0;
+      --aqua: #8ee9f4;
+      --peach: #ffd8c7;
+      --cream: #fff6e8;
+      --ink: #183244;
+      --muted: #6a7f8d;
+      --line: rgba(92, 182, 221, 0.20);
+      --glass: rgba(255, 255, 255, 0.70);
+      --glass-strong: rgba(255, 255, 255, 0.86);
+      --shadow-soft: 0 12px 32px rgba(80, 167, 207, 0.18);
+      --shadow-card: 0 10px 26px rgba(68, 145, 184, 0.13);
+    }
+
+    body {
+      background: #dff6ff !important;
+      color: var(--ink) !important;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    }
+
+    .phone {
+      background: #eefaff !important;
+      box-shadow: 0 24px 60px rgba(39, 120, 156, 0.22), 0 0 0 10px rgba(255,255,255,.34) !important;
+      border: 1px solid rgba(255,255,255,.72);
+    }
+
+    .screen {
+      background:
+        radial-gradient(circle at 14% 10%, rgba(255,255,255,.94) 0 90px, transparent 91px),
+        radial-gradient(circle at 92% 22%, rgba(255,216,199,.46) 0 88px, transparent 89px),
+        linear-gradient(180deg, #f7fdff 0%, #eaf9ff 50%, #fff9f2 100%) !important;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .screen > * {
+      position: relative;
+      z-index: 2;
+    }
+
+    .screen::before,
+    .screen::after {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      pointer-events: none;
+      border-radius: 999px;
+      filter: blur(.1px);
+      opacity: .92;
+      mix-blend-mode: normal;
+    }
+
+    .screen::before {
+      width: 250px;
+      height: 250px;
+      left: -72px;
+      top: 66px;
+      background:
+        radial-gradient(circle at 32% 32%, rgba(255,255,255,.96) 0 17%, transparent 18%),
+        radial-gradient(circle at 70% 68%, rgba(255,216,199,.68) 0 21%, transparent 22%),
+        radial-gradient(circle at 48% 48%, rgba(127,215,255,.50) 0 57%, transparent 58%);
+      animation: bubbleDriftA 13s ease-in-out infinite, bubbleHue 9s ease-in-out infinite;
+    }
+
+    .screen::after {
+      width: 300px;
+      height: 300px;
+      right: -116px;
+      bottom: 76px;
+      background:
+        radial-gradient(circle at 38% 28%, rgba(255,255,255,.88) 0 12%, transparent 13%),
+        radial-gradient(circle at 66% 70%, rgba(255,246,232,.72) 0 18%, transparent 19%),
+        radial-gradient(circle at 50% 50%, rgba(142,233,244,.48) 0 62%, transparent 63%);
+      animation: bubbleDriftB 16s ease-in-out infinite, bubbleHue 11s ease-in-out infinite reverse;
+    }
+
+    @keyframes bubbleDriftA {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      28% { transform: translate(28px, 52px) scale(1.08); }
+      62% { transform: translate(74px, 12px) scale(.96); }
+    }
+
+    @keyframes bubbleDriftB {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      35% { transform: translate(-36px, -58px) scale(1.05); }
+      72% { transform: translate(-88px, 14px) scale(.98); }
+    }
+
+    @keyframes bubbleHue {
+      0%, 100% { filter: hue-rotate(0deg) saturate(1); }
+      45% { filter: hue-rotate(18deg) saturate(1.12); }
+      70% { filter: hue-rotate(-12deg) saturate(1.05); }
+    }
+
+    .status-bar {
+      color: rgba(24, 50, 68, .86) !important;
+    }
+
+    .app-header {
+      padding-top: 12px !important;
+    }
+
+    .logo {
+      color: var(--ink) !important;
+      font-weight: 850 !important;
+      letter-spacing: -1px !important;
+    }
+
+    .logo span,
+    .section-title button,
+    .section-title span,
+    .inline-action,
+    .menu-arrow,
+    .space-info,
+    .nav-item.active {
+      color: var(--sky-deep) !important;
+    }
+
+    .round-btn,
+    .mail {
+      background: rgba(255,255,255,.72) !important;
+      border: 1px solid rgba(255,255,255,.92) !important;
+      color: var(--sky-deep) !important;
+      box-shadow: 0 8px 22px rgba(67, 157, 197, .15) !important;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .round-btn:active,
+    .mail:active,
+    .primary-btn:active,
+    .secondary-btn:active,
+    .purple-pill:active,
+    .ar-action-chip:active,
+    .card:active,
+    .menu-item:active,
+    .post-card:active,
+    .space-card:active {
+      transform: scale(.97);
+    }
+
+    .hero,
+    .dark-hero,
+    .profile-card {
+      color: var(--ink) !important;
+      background:
+        radial-gradient(circle at 85% 15%, rgba(255,255,255,.82) 0 34px, transparent 35px),
+        radial-gradient(circle at 13% 84%, rgba(255,216,199,.50) 0 42px, transparent 43px),
+        rgba(255,255,255,.64) !important;
+      border: 1px solid rgba(255,255,255,.84);
+      box-shadow: var(--shadow-soft) !important;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .hero::after,
+    .dark-hero::after,
+    .profile-card::after {
+      background: rgba(127, 215, 255, .20) !important;
+      border: 1px solid rgba(255,255,255,.42);
+      box-shadow: inset 0 0 30px rgba(255,255,255,.40);
+    }
+
+    .hero h1,
+    .dark-hero h1,
+    .profile-info h1 {
+      color: var(--ink) !important;
+      letter-spacing: -1.05px !important;
+    }
+
+    .hero p,
+    .dark-hero p,
+    .profile-info p {
+      color: rgba(24,50,68,.72) !important;
+      opacity: 1 !important;
+    }
+
+    .badge {
+      background: rgba(255,255,255,.66) !important;
+      border-color: rgba(255,255,255,.85) !important;
+      color: var(--sky-deep) !important;
+      box-shadow: 0 4px 14px rgba(69, 157, 196, .10);
+    }
+
+    .primary-btn,
+    .purple-pill {
+      background: #65cfff !important;
+      color: #ffffff !important;
+      box-shadow: 0 10px 22px rgba(57, 168, 219, .28) !important;
+      border: 1px solid rgba(255,255,255,.68) !important;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .primary-btn:hover,
+    .purple-pill:hover {
+      background: #4cc3f7 !important;
+      box-shadow: 0 12px 26px rgba(57, 168, 219, .34) !important;
+    }
+
+    .secondary-btn {
+      background: rgba(255, 246, 232, .82) !important;
+      color: #bf6f4e !important;
+      border: 1px solid rgba(255,216,199,.88) !important;
+      box-shadow: 0 8px 18px rgba(212, 143, 108, .12) !important;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .post-card,
+    .card,
+    .menu-item,
+    .space-card,
+    .membership-card,
+    .draft-card,
+    .creation-card,
+    .live-card {
+      background: rgba(255,255,255,.72) !important;
+      border: 1px solid rgba(255,255,255,.82) !important;
+      box-shadow: var(--shadow-card) !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+    }
+
+    .post-card:hover,
+    .card:hover,
+    .menu-item:hover,
+    .space-card:hover {
+      transform: translateY(-2px);
+      background: rgba(255,255,255,.82) !important;
+      box-shadow: 0 14px 30px rgba(68, 145, 184, .17) !important;
+    }
+
+    .post-body,
+    .card p,
+    .tool-card p,
+    .menu-text p,
+    .post-meta p,
+    .space-card p {
+      color: var(--muted) !important;
+    }
+
+    .section-title h2,
+    .post-meta h3,
+    .card h3,
+    .tool-card h3,
+    .menu-text h3,
+    .space-card h3 {
+      color: var(--ink) !important;
+    }
+
+    .avatar,
+    .post-avatar,
+    .tool-icon,
+    .menu-icon,
+    .membership-icon,
+    .live-icon {
+      background: #e9f8ff !important;
+      color: var(--sky-deep) !important;
+      border: 1px solid rgba(255,255,255,.88) !important;
+      box-shadow: 0 8px 18px rgba(82, 173, 214, .14) !important;
+    }
+
+    .post-avatar.nj,
+    .post-avatar.svt {
+      background: #fff3eb !important;
+      color: #bf6f4e !important;
+    }
+
+    .tag {
+      background: rgba(233,248,255,.92) !important;
+      color: var(--sky-deep) !important;
+      border: 1px solid rgba(127,215,255,.32);
+    }
+
+    .media-placeholder,
+    .image-box,
+    .space-image,
+    .space-image.dark,
+    .space-image.blue,
+    .creation-image,
+    .creation-image.dark {
+      background: rgba(240, 250, 255, .72) !important;
+      color: var(--sky-deep) !important;
+      border: 1px solid rgba(127,215,255,.30) !important;
+      box-shadow: inset 0 0 24px rgba(255,255,255,.72);
+    }
+
+    .media-placeholder::before,
+    .image-box::before,
+    .space-image::before,
+    .creation-image::before {
+      content: "";
+      position: absolute;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(255,216,199,.35);
+      transform: translate(38px, -22px);
+      pointer-events: none;
+    }
+
+    .media-placeholder,
+    .image-box,
+    .space-image,
+    .creation-image {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bottom-nav {
+      height: 82px !important;
+      background: rgba(255,255,255,.74) !important;
+      border-top: 1px solid rgba(255,255,255,.80) !important;
+      box-shadow: 0 -12px 30px rgba(74, 160, 200, .12);
+    }
+
+    .nav-item {
+      border-radius: 18px;
+      color: rgba(70, 99, 115, .62) !important;
+      transition: background .2s ease, transform .2s ease, color .2s ease;
+    }
+
+    .nav-item.active {
+      background: rgba(224, 247, 255, .92) !important;
+      box-shadow: inset 0 0 0 1px rgba(127,215,255,.25);
+    }
+
+    .page-label {
+      color: rgba(80, 128, 149, .42) !important;
+    }
+
+    .input-card textarea,
+    .input-card input,
+    .input-card select {
+      background: rgba(255,255,255,.82) !important;
+      border-color: rgba(127,215,255,.28) !important;
+      color: var(--ink) !important;
+      box-shadow: inset 0 2px 8px rgba(67, 157, 197, .06);
+    }
+
+    .toast {
+      background: rgba(24,50,68,.88) !important;
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .selected-count,
+    .selected-summary,
+    .access-option.selected,
+    .content-item.selected {
+      border-color: rgba(101,207,255,.72) !important;
+      background: rgba(235,250,255,.82) !important;
+      box-shadow: 0 10px 24px rgba(65, 172, 220, .16) !important;
+    }
+
+    .access-option,
+    .content-item,
+    .content-thumb,
+    .theme-chip,
+    .filter-chip {
+      background: rgba(255,255,255,.70) !important;
+      border-color: rgba(127,215,255,.24) !important;
+      color: var(--ink) !important;
+      box-shadow: 0 8px 20px rgba(68,145,184,.10) !important;
+    }
+
+    .theme-chip,
+    .filter-chip {
+      border-radius: 999px !important;
+    }
+
+    .content-thumb {
+      color: var(--sky-deep) !important;
+      font-size: 18px !important;
+      background: #eefaff !important;
+    }
+
+    .checkmark,
+    .access-check {
+      background: #65cfff !important;
+      color: #fff !important;
+      border-color: rgba(255,255,255,.72) !important;
+    }
+
+    .ar-live-shell {
+      background: #dff6ff !important;
+      box-shadow: 0 14px 34px rgba(39, 120, 156, .22) !important;
+    }
+
+    .ar-top-ui,
+    .ar-scan-frame,
+    .scan-line,
+    .ar-bottom-panel,
+    .ar-chat-bubble,
+    .idol-layer,
+    .ar-particle {
+      z-index: 5;
+    }
+
+    .ar-glass-btn,
+    .ar-status-pill,
+    .ar-chat-bubble,
+    .ar-bottom-panel,
+    .ar-action-chip {
+      background: rgba(255,255,255,.25) !important;
+      border-color: rgba(255,255,255,.42) !important;
+      color: #fff !important;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+    }
+
+    .ar-action-chip {
+      transition: transform .18s ease, background .18s ease;
+    }
+
+    .ar-action-chip:hover {
+      background: rgba(127,215,255,.34) !important;
+    }
+
+    @media (max-width: 430px) {
+      body {
+        background: #dff6ff !important;
+      }
+    }
+
+
+
+    /* ===== Final visual + Publish Work fixes ===== */
+    body,
+    button,
+    input,
+    textarea,
+    select {
+      font-family: "Avenir Next", "Trebuchet MS", sans-serif !important;
+    }
+
+    .logo,
+    h1,
+    h2,
+    h3 {
+      letter-spacing: -0.35px !important;
+    }
+
+    #scan-room-page .room-pan-1 {
+      background-image:
+        linear-gradient(rgba(20, 42, 54, .08), rgba(20, 42, 54, .24)),
+        url('scan-room-background.jpg') !important;
+      background-position: center !important;
+      background-size: cover !important;
+    }
+
+    .publish-page {
+      padding-bottom: 16px;
+    }
+
+    .compact-work-card {
+      margin-bottom: 14px;
+    }
+
+    .compact-work-card .studio-header {
+      margin-bottom: 0;
+    }
+
+    .publish-choice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .publish-option.publish-choice,
+    .license-option {
+      cursor: pointer;
+      display: grid !important;
+      grid-template-columns: 26px 40px 1fr;
+      align-items: center !important;
+      gap: 12px !important;
+      padding: 14px !important;
+      margin-bottom: 0 !important;
+      border-radius: 24px !important;
+      background: rgba(255, 255, 255, .72) !important;
+      border: 1px solid rgba(255,255,255,.86) !important;
+      box-shadow: 0 10px 24px rgba(68,145,184,.12) !important;
+      transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    }
+
+    .publish-option.publish-choice:hover,
+    .license-option:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.84) !important;
+    }
+
+    .publish-option.publish-choice.selected,
+    .license-option.selected {
+      border-color: rgba(101, 207, 255, .72) !important;
+      background: rgba(234, 248, 255, .92) !important;
+      box-shadow: 0 12px 26px rgba(57, 168, 219, .18) !important;
+    }
+
+    .publish-option.publish-choice .publish-radio,
+    .license-option .publish-radio {
+      width: 24px !important;
+      height: 24px !important;
+      border-radius: 50% !important;
+      background: rgba(255,255,255,.75) !important;
+      border: 1.8px solid rgba(101, 207, 255, .85) !important;
+      color: #249ed0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 12px !important;
+      font-weight: 900 !important;
+      box-shadow: none !important;
+      margin: 0 !important;
+    }
+
+    .publish-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 246, 232, .86);
+      border: 1px solid rgba(255,216,199,.82);
+      font-size: 18px;
+    }
+
+    .publish-copy h3,
+    .license-option h3 {
+      font-size: 14px !important;
+      margin-bottom: 4px !important;
+      color: #183244 !important;
+    }
+
+    .publish-copy p,
+    .license-option p {
+      font-size: 11px !important;
+      line-height: 1.38 !important;
+      color: #6a7f8d !important;
+      margin: 0 !important;
+    }
+
+    .license-card {
+      margin: 14px 0;
+    }
+
+    .license-option {
+      grid-template-columns: 26px 1fr !important;
+      margin-top: 10px !important;
+    }
+
+    .tag-card h3 {
+      font-size: 15px !important;
+      margin-bottom: 10px !important;
+    }
+
+    .selectable-tags .tag-chip.selectable {
+      cursor: pointer;
+      position: relative;
+      padding-left: 27px !important;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .selectable-tags .tag-chip.selectable::before {
+      content: "○";
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: #249ed0;
+      font-weight: 900;
+    }
+
+    .selectable-tags .tag-chip.selectable.selected {
+      background: rgba(223,246,255,.95) !important;
+      color: #249ed0 !important;
+      border-color: rgba(101,207,255,.82) !important;
+    }
+
+    .selectable-tags .tag-chip.selectable.selected::before {
+      content: "✓";
+    }
+
+    .tag-chip.add-tag {
+      cursor: pointer;
+      background: rgba(255,246,232,.90) !important;
+      color: #bf6f4e !important;
+      border-color: rgba(255,216,199,.88) !important;
+    }
+
+  
+
+    /* ===== Final requested visual fixes: elegant font, Select Content layout, Music Studio color ===== */
+    body,
+    button,
+    input,
+    textarea,
+    select {
+      font-family: "Helvetica Neue", "Optima", "Avenir", "Segoe UI", Arial, sans-serif !important;
+      font-weight: 400 !important;
+      letter-spacing: 0 !important;
+    }
+
+    .logo,
+    h1,
+    h2,
+    h3 {
+      font-family: "Helvetica Neue", "Optima", "Avenir", "Segoe UI", Arial, sans-serif !important;
+      font-weight: 560 !important;
+      letter-spacing: -0.18px !important;
+    }
+
+    .logo {
+      font-weight: 580 !important;
+    }
+
+    .badge,
+    .tag,
+    .tag-chip,
+    .theme-chip,
+    .filter-chip,
+    .primary-btn,
+    .secondary-btn,
+    .purple-pill,
+    .inline-action,
+    .select-toggle,
+    .nav-item,
+    .publish-radio,
+    .ar-action-chip,
+    .ar-status-pill {
+      font-weight: 520 !important;
+    }
+
+    .post-body,
+    .content-meta p,
+    .narrative-meta p,
+    .card p,
+    .menu-text p,
+    .publish-copy p,
+    .license-option p,
+    .studio-header p,
+    .studio-control label {
+      font-weight: 380 !important;
+    }
+
+    #select-content.screen {
+      height: 844px !important;
+      overflow-y: auto !important;
+      padding-bottom: 178px !important;
+      scrollbar-width: none;
+    }
+
+    #select-content.screen::-webkit-scrollbar {
+      display: none;
+    }
+
+    #select-content .content-item {
+      padding: 10px 11px !important;
+      gap: 10px !important;
+    }
+
+    #select-content .content-thumb {
+      width: 50px !important;
+      height: 50px !important;
+      border-radius: 16px !important;
+      font-size: 8.5px !important;
+      line-height: 1.18 !important;
+      font-weight: 520 !important;
+      letter-spacing: 0 !important;
+      background: rgba(255,255,255,.82) !important;
+      color: #2f9dcc !important;
+      border: 1px solid rgba(121, 205, 242, .32) !important;
+      box-shadow: 0 6px 14px rgba(68,145,184,.08) !important;
+    }
+
+    #select-content .content-meta h3 {
+      font-size: 12.2px !important;
+      line-height: 1.22 !important;
+      font-weight: 540 !important;
+    }
+
+    #select-content .content-meta p {
+      font-size: 9.5px !important;
+      line-height: 1.25 !important;
+    }
+
+    #select-content .select-toggle {
+      min-width: 58px !important;
+      padding: 6px 8px !important;
+      font-size: 9px !important;
+    }
+
+    #select-content .content-item.selected .select-toggle {
+      min-width: 26px !important;
+      height: 26px !important;
+      padding: 0 !important;
+    }
+
+    #select-content .sticky-bottom-card {
+      position: sticky !important;
+      bottom: 88px !important;
+      z-index: 40 !important;
+      margin-top: 16px !important;
+      margin-bottom: 0 !important;
+      border-radius: 24px !important;
+      background: rgba(255,255,255,.86) !important;
+      border: 1px solid rgba(255,255,255,.92) !important;
+      box-shadow: 0 16px 34px rgba(54, 140, 181, .18) !important;
+      backdrop-filter: blur(22px) !important;
+      -webkit-backdrop-filter: blur(22px) !important;
+    }
+
+    #select-content #selected-icons {
+      display: block;
+      font-size: 14px !important;
+      line-height: 1 !important;
+      font-weight: 520 !important;
+      color: #2f9dcc !important;
+      letter-spacing: 1px !important;
+    }
+
+    #select-content .sticky-bottom-card .post-body {
+      font-size: 10.5px !important;
+      color: #6c8795 !important;
+    }
+
+    #select-content .sticky-bottom-card .purple-pill {
+      margin-top: 0 !important;
+      padding: 10px 13px !important;
+      font-size: 11.5px !important;
+      white-space: nowrap;
+    }
+
+    #music-studio .mail,
+    #music-studio .round-btn,
+    #music-studio .studio-cover,
+    #music-studio .purple-pill,
+    #music-studio .inline-action {
+      background: #7ed3f7 !important;
+      color: #ffffff !important;
+      border-color: rgba(255,255,255,.74) !important;
+      box-shadow: 0 10px 22px rgba(67, 167, 211, .18) !important;
+    }
+
+    #music-studio .studio-panel,
+    #music-studio .studio-control {
+      background: rgba(255,255,255,.80) !important;
+      border-color: rgba(125, 211, 247, .26) !important;
+      box-shadow: 0 12px 28px rgba(68,145,184,.10) !important;
+    }
+
+    #music-studio .section-title span,
+    #music-studio .studio-control label,
+    #music-studio .studio-time span {
+      color: #3ca6d4 !important;
+      font-weight: 500 !important;
+    }
+
+    #music-studio .studio-bar {
+      background: rgba(224, 245, 253, .92) !important;
+    }
+
+    #music-studio .studio-bar span {
+      background: #7ed3f7 !important;
+    }
+
+    #music-studio input,
+    #music-studio textarea,
+    #music-studio select {
+      color: #183244 !important;
+      font-weight: 400 !important;
+    }
+
+    #publish-work .purple-pill {
+      background: #7ed3f7 !important;
+      color: #ffffff !important;
+      border-color: rgba(255,255,255,.74) !important;
+      box-shadow: 0 10px 22px rgba(67, 167, 211, .18) !important;
+    }
+
+  
+    /* ===== Final fixes: Select summary placement + Build Space reorder ===== */
+    #select-content .sticky-bottom-card {
+      position: static !important;
+      bottom: auto !important;
+      z-index: 1 !important;
+      margin-top: 12px !important;
+      margin-bottom: 22px !important;
+    }
+
+    #select-content.screen {
+      padding-bottom: 118px !important;
+    }
+
+    #build-space .section-title span,
+    #build-space .inline-action,
+    #build-space .setting-card p span {
+      color: #2f9dcc !important;
+    }
+
+    #build-space .selected-mark {
+      background: #61c3e8 !important;
+      color: #ffffff !important;
+      font-weight: 520 !important;
+      box-shadow: 0 8px 18px rgba(97,195,232,.22) !important;
+    }
+
+    #build-space .narrative-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #build-space .narrative-item {
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, opacity .18s ease;
+    }
+
+    #build-space .narrative-item:active {
+      cursor: grabbing;
+    }
+
+    #build-space .narrative-item.dragging {
+      opacity: .72;
+      transform: scale(.985);
+      border-color: rgba(97,195,232,.68) !important;
+      box-shadow: 0 18px 38px rgba(54,140,181,.20) !important;
+    }
+
+    #build-space .narrative-item.drop-target {
+      border-color: rgba(97,195,232,.75) !important;
+      transform: translateY(2px);
+    }
+
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="screen active" id="home">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><div class="logo">we<span>+</span>verse</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="hero">
+        <div class="badge-row"><span class="badge">NEW</span><span class="badge">AI Powered</span><span class="badge">AR Ready</span></div>
+        <h1>Create with your artists</h1>
+        <p>FanCreate works + IdolVerse AR spaces are now live.</p>
+        <div class="hero-actions"><button class="primary-btn" data-go="create">✦ Start Creating</button><button class="secondary-btn" data-go="ar">Explore AR Space</button></div>
+      </div>
+      <div class="section">
+        <div class="section-title"><h2>Followed Artists</h2><button data-go="artists">All</button></div>
+        <div class="artist-scroll">
+          <div class="artist" data-go="artist-bts"><div class="avatar">BTS</div><p>BTS</p></div>
+          <div class="artist" data-go="artist-svt"><div class="avatar">SVT</div><p>SEVENTEEN</p></div>
+          <div class="artist" data-go="artist-txt"><div class="avatar">TXT</div><p>TXT</p></div>
+          <div class="artist" data-go="artist-enhypen"><div class="avatar">EN</div><p>ENHYPEN</p></div>
+          <div class="artist" data-go="artist-lesserafim"><div class="avatar">LSF</div><p>LE SSERAFIM</p></div>
+          <div class="artist" data-go="artist-newjeans"><div class="avatar">NJ</div><p>NewJeans</p></div>
+          <div class="artist" data-go="artist-illit"><div class="avatar">IL</div><p>ILLIT</p></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title"><h2>Latest Updates</h2><button data-go="feed-all">All</button></div>
+        <div class="feed-list">
+          <article class="post-card">
+            <div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official</h3><p>2 min ago</p></div><span class="tag">Official</span></div>
+            <p class="post-body">BTS is preparing a new album. Stay tuned for more updates.</p>
+            <div class="post-actions"><div><button class="inline-action" data-go="likes">♡2.4k</button><button class="inline-action" data-go="comments">◎348</button></div><button class="inline-action" data-go="share">↗Share</button></div>
+          </article>
+          <article class="post-card">
+            <div class="post-top"><div class="post-avatar nj">NJ</div><div class="post-meta"><h3>NewJeans</h3><p>15 min ago</p></div><span class="tag">FanCreate</span></div>
+            <div class="media-placeholder">♪</div><p class="post-body">A NewJeans-style fan cover. Hope you like it. I used AI-assisted arrangement for the first time.</p>
+            <div class="post-actions"><div><button class="inline-action" data-go="likes">♡2.4k</button><button class="inline-action" data-go="comments">◎348</button></div><button class="inline-action" data-go="share">↗Share</button><button class="inline-action" data-go="play">▶Play</button></div>
+          </article>
+          <article class="post-card">
+            <div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official</h3><p>1 hour ago</p></div><span class="tag">IdolVerse AR</span></div>
+            <div class="media-placeholder">⬡</div><p class="post-body">I recreated the BTS IN THE SOOP scene in AR space. Come and visit!</p>
+            <div class="post-actions"><div><button class="inline-action" data-go="likes">♡2.4k</button><button class="inline-action" data-go="comments">◎348</button></div><button class="inline-action" data-go="share">↗Share</button><button class="inline-action" data-go="ar-room">⬡Enter</button></div>
+          </article>
+          <article class="post-card">
+            <div class="post-top"><div class="post-avatar svt">SVT</div><div class="post-meta"><h3>SEVENTEEN</h3><p>3 hours ago</p></div><span class="tag">Official</span></div>
+            <p class="post-body">A new SEVENTEEN variety episode is being recorded. Stay tuned!</p>
+            <div class="post-actions"><div><button class="inline-action" data-go="likes">♡2.4k</button><button class="inline-action" data-go="comments">◎348</button></div><button class="inline-action" data-go="share">↗Share</button></div>
+          </article>
+        </div>
+      </div>
+      <div class="page-label">Page 01 Home Feed</div>
+    </section>
+
+    <section class="screen" id="create">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><div class="logo">we<span>+</span>verse</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="hero">
+        <div class="badge-row"><span class="badge">FanCreate</span><span class="badge">AI Powered</span></div>
+        <h1>Create fan works</h1>
+        <p>Choose a creation type and enter the matching studio. Fans can make music, fan art, fan fiction, and MV edits.</p>
+        <div class="hero-actions"><button class="primary-btn" data-go="music-studio">♪ AI Music Studio</button><button class="secondary-btn" data-go="publish-work">Publish Work</button></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><h2>Creation Tools</h2><button data-go="tools-all">All</button></div>
+        <div class="tool-grid">
+          <article class="card tool-card" data-go="music-studio"><div class="tool-icon">♪</div><h3>AI Music</h3><p>Create demos, covers and short music ideas with AI support.</p></article>
+          <article class="card tool-card" data-go="fan-art"><div class="tool-icon">✦</div><h3>Fan Art</h3><p>Create posters, fan visuals or edited images with or without AI.</p></article>
+          <article class="card tool-card" data-go="fan-fiction"><div class="tool-icon">⌁</div><h3>Fan Fiction</h3><p>Write stories, scenes and character-inspired fan narratives.</p></article>
+          <article class="card tool-card" data-go="mv-edit"><div class="tool-icon">▶</div><h3>MV Edit</h3><p>Edit clips, transitions and short-form fan video works.</p></article>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><h2>Music Studio Preview</h2><span>AI Music</span></div>
+        <article class="studio-panel">
+          <div class="studio-header">
+            <div class="studio-cover">♪</div>
+            <div>
+              <h3>BTS · Ballad Demo</h3>
+              <p>60s AI-assisted music draft · ready for editing</p>
+            </div>
+          </div>
+          <div class="studio-time"><span>0:18</span><div class="studio-bar"><span></span></div><span>1:00</span></div>
+          <button class="purple-pill" data-go="music-studio">Open Music Studio</button>
+        </article>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><h2>Hot Creations</h2><button data-go="feed-all">All</button></div>
+        <div class="feed-list">
+          <article class="post-card hot-card" data-go="play"><div class="hot-thumb">♪</div><div><h3>ARMY Ballad Remix</h3><p class="post-body">BTS · AI Music · 2.4k likes</p></div></article>
+          <article class="post-card hot-card" data-go="ar-room"><div class="hot-thumb">⬡</div><div><h3>IN THE SOOP Room</h3><p class="post-body">IdolVerse space · 1.1k visits</p></div></article>
+        </div>
+      </div>
+
+      <div class="page-label">Page 02 Create</div>
+    </section>
+
+    <section class="screen" id="ar">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><div class="logo">we<span>+</span>verse</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="dark-hero"><div class="badge-row"><span class="badge">IdolVerse AR</span><span class="badge">Live Space</span></div><h1>Explore AR space</h1><p>Enter an immersive space built with official content, fan creations, and AR interaction.</p><div class="hero-actions"><button class="primary-btn" data-go="ar-live-scan">⬡ Enter Space</button><button class="secondary-btn" data-go="select-content">Build Your Space</button><button class="secondary-btn" data-go="scan-room-page">Scan Room</button></div></div>
+      <div class="section"><div class="section-title"><h2>Recommended AR Spaces</h2><button data-go="ar-list">All</button></div><div class="space-scroll"><article class="card space-card" data-go="ar-room"><div class="space-image dark">⬡</div><h3>BTS IN THE SOOP</h3><p>Recreate a forest-themed scene.</p><div class="space-info"><span>Live</span><span>48.2k</span></div></article><article class="card space-card" data-go="ar-room"><div class="space-image blue">✦</div><h3>NewJeans Pop Room</h3><p>AR stickers and music clips.</p><div class="space-info"><span>Hot</span><span>31.6k</span></div></article></div></div>
+      <div class="section"><div class="section-title"><h2>Current Activity</h2><button data-go="mission-detail">Details</button></div><article class="post-card"><div class="post-top"><div class="post-avatar">⬡</div><div class="post-meta"><h3>Global AR Fan Mission</h3><p>Light up the global fan support map together</p></div><span class="tag">Live</span></div><p class="post-body">72% mission completed · 18k rooms joined · 5h left</p></article></div>
+      <div class="page-label">Page 03 AR Space</div>
+    </section>
+
+    <section class="screen" id="profile">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><div class="logo">we<span>+</span>verse</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="profile-card"><div class="profile-top"><div class="profile-avatar">S</div><div class="profile-info"><h1>Sophie</h1><p>Fan creator · AR space visitor<br>BTS · NewJeans · SEVENTEEN</p></div></div><div class="level-badge">✦ Creator Level 8</div><div class="profile-stats"><div class="stat-item"><strong>24</strong><span>creations</span></div><div class="stat-item"><strong>3.8k</strong><span>likes</span></div><div class="stat-item"><strong>16</strong><span>AR visits</span></div></div></div>
+      <div class="section"><div class="section-title"><h2>Membership & Fan Identity</h2><button data-go="membership">View</button></div><article class="post-card"><div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official Membership</h3><p>Membership linked</p></div><span class="tag">Active</span></div><p class="post-body">Access exclusive content, FanCreate challenges, and AR missions.</p><button class="purple-pill" data-go="membership">View Benefits →</button></article></div>
+      <div class="section"><div class="section-title"><h2>Account Features</h2><button data-go="settings">Settings</button></div><div class="menu-list"><article class="menu-item" data-go="history"><div class="menu-icon">♡</div><div class="menu-text"><h3>Saved & History</h3><p>View saved artist posts, creations, and AR spaces.</p></div><div class="menu-arrow">›</div></article><article class="menu-item" data-go="permissions"><div class="menu-icon">◎</div><div class="menu-text"><h3>Creation Rights & Data</h3><p>Manage AI creation permissions, work visibility, and fan engagement data.</p></div><div class="menu-arrow">›</div></article></div></div>
+      <div class="page-label">Page 04 Profile</div>
+    </section>
+
+    <section class="screen" id="messages">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Messages</div><button class="mail" data-go="home">⌂</button></header>
+      <div class="section"><div class="section-title"><h2>Notifications</h2><span>Inbox</span></div><div class="feed-list"><article class="post-card"><div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official</h3><p>New post · 2 min ago</p></div><span class="tag">Official</span></div><p class="post-body">BTS is preparing a new album.</p></article><article class="post-card"><div class="post-top"><div class="post-avatar nj">NJ</div><div class="post-meta"><h3>FanCreate Update</h3><p>Your draft is ready to continue</p></div><span class="tag">Draft</span></div><p class="post-body">Your NewJeans-style fan cover has been saved.</p></article></div></div><div class="page-label">Page 05 Messages</div>
+    </section>
+
+    <section class="screen" id="artists">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Artists</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section">
+        <div class="section-title"><h2>Followed Artists All</h2><span>7</span></div>
+        <div class="tool-grid">
+          <article class="card artist-desc-card" data-go="artist-bts"><div class="avatar">BTS</div><h3>BTS</h3><p>Global pop group with strong album, live and community engagement.</p></article>
+          <article class="card artist-desc-card" data-go="artist-svt"><div class="avatar">SVT</div><h3>SEVENTEEN</h3><p>Performance-focused group with high fan participation and variety content.</p></article>
+          <article class="card artist-desc-card" data-go="artist-txt"><div class="avatar">TXT</div><h3>TOMORROW X TOGETHER</h3><p>Youth storytelling, concept albums and strong digital fandom culture.</p></article>
+          <article class="card artist-desc-card" data-go="artist-enhypen"><div class="avatar">EN</div><h3>ENHYPEN</h3><p>Global fanbase with immersive concepts, stages and narrative content.</p></article>
+          <article class="card artist-desc-card" data-go="artist-lesserafim"><div class="avatar">LSF</div><h3>LE SSERAFIM</h3><p>Bold performance identity with fashion, dance and social media appeal.</p></article>
+          <article class="card artist-desc-card" data-go="artist-newjeans"><div class="avatar">NJ</div><h3>NewJeans</h3><p>Fresh pop sound, nostalgic visuals and remix-friendly fan creation style.</p></article>
+          <article class="card artist-desc-card" data-go="artist-illit"><div class="avatar">IL</div><h3>ILLIT</h3><p>New-generation girl group with bright concepts and short-form potential.</p></article>
+        </div>
+      </div>
+      <div class="page-label">Page 06 Artists All</div>
+    </section>
+
+    <section class="screen" id="feed-all">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Latest</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section"><div class="section-title"><h2>Latest Updates All</h2><span>Feed</span></div><div class="feed-list"><article class="post-card"><div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official</h3><p>2 min ago</p></div><span class="tag">Official</span></div><p class="post-body">BTS is preparing a new album. Stay tuned for more updates.</p></article><article class="post-card"><div class="post-top"><div class="post-avatar nj">NJ</div><div class="post-meta"><h3>NewJeans</h3><p>15 min ago</p></div><span class="tag">FanCreate</span></div><div class="media-placeholder">♪</div><p class="post-body">A NewJeans-style fan cover. Hope you like it. I used AI-assisted arrangement for the first time.</p><button class="purple-pill" data-go="play">▶Play</button></article><article class="post-card"><div class="post-top"><div class="post-avatar">BTS</div><div class="post-meta"><h3>BTS Official</h3><p>1 hour ago</p></div><span class="tag">IdolVerse AR</span></div><div class="media-placeholder">⬡</div><p class="post-body">I recreated the BTS IN THE SOOP scene in AR space. Come and visit!</p><button class="purple-pill" data-go="ar-room">⬡Enter</button></article></div></div><div class="page-label">Page 07 Latest All</div>
+    </section>
+
+    <section class="screen" id="play">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">FanCreate</div><button class="mail" data-go="share">↗</button></header>
+      <div class="dark-hero"><div class="badge-row"><span class="badge">FanCreate</span><span class="badge">AI Cover</span></div><h1>NewJeans-Style Fan Cover</h1><p>Hope you like it. I used AI-assisted arrangement for the first time.</p><div class="hero-actions"><button class="primary-btn" data-toast="Playing demo...">▶ Play demo</button><button class="secondary-btn" data-go="comments">◎ Comments</button></div></div><div class="section"><div class="image-box">♪</div><article class="post-card"><p class="post-body">Track progress · 00:42 / 02:15</p><button class="purple-pill" data-go="share">↗Share</button></article></div><div class="page-label">Page 08 Play</div>
+    </section>
+
+    <section class="screen" id="ar-room">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">IdolVerse</div><button class="mail" data-go="share">↗</button></header>
+      <div class="dark-hero"><div class="badge-row"><span class="badge">IdolVerse AR</span><span class="badge">BTS</span></div><h1>BTS IN THE SOOP</h1><p>I recreated the BTS IN THE SOOP scene in AR space. Come and visit!</p><div class="hero-actions"><button class="primary-btn" data-go="ar-live-scan">⬡ Enter room</button><button class="secondary-btn" data-go="mission-detail">View Mission</button></div></div><div class="section"><div class="image-box">⬡</div><article class="post-card"><p class="post-body">48.2k fans are visiting · 1.1k saved rooms</p><button class="purple-pill" data-go="share">↗Share space</button></article></div><div class="page-label">Page 09 AR Room</div>
+    </section>
+
+    <section class="screen" id="select-content">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Select Content</div><button class="mail" data-go="messages">✉</button></header>
+
+      <div class="section">
+        <div class="section-title"><h2>Select Content</h2><span><span id="selected-count-top">3</span> Selected</span></div>
+        <article class="post-card input-card">
+          <h3>Define Your Narrative Theme</h3>
+          <p class="post-body">AI Suggested</p>
+          <textarea rows="3" placeholder="Describe the story of your space...">The quiet serenity of BTS IN THE SOOP</textarea>
+          <div class="theme-chip-row">
+            <span class="theme-chip">The quiet serenity of BTS IN THE SOOP</span>
+            <span class="theme-chip">Sunny summer vibes of Butter MV</span>
+            <span class="theme-chip">Inner monologue of Black Swan</span>
+            <span class="theme-chip">Pink bubble of Boy With Luv</span>
+          </div>
+        </article>
+
+        <div class="filter-row" style="margin:14px 0 10px;">
+          <span class="filter-chip">All</span><span class="filter-chip">Performance</span><span class="filter-chip">Practice Room</span><span class="filter-chip">Vlog</span><span class="filter-chip">Variety</span><span class="filter-chip">Official</span>
+        </div>
+
+        <div class="feed-list">
+          <article class="content-item selected" data-select-item><div class="content-thumb">Vlog<br>3:24</div><div class="content-meta"><h3>BTS IN THE SOOP Highlights</h3><p>2023.08 · Vlog</p></div><button class="select-toggle">✓</button></article>
+          <article class="content-item" data-select-item><div class="content-thumb">Official<br>5:12</div><div class="content-meta"><h3>Butter MV Behind The Scenes</h3><p>2021.07 · Official</p></div><button class="select-toggle">Add to Space</button></article>
+          <article class="content-item selected" data-select-item><div class="content-thumb">Stage<br>4:08</div><div class="content-meta"><h3>BTS Permission To Dance</h3><p>2021.09 · Performance</p></div><button class="select-toggle">✓</button></article>
+          <article class="content-item" data-select-item><div class="content-thumb">Practice<br>8:33</div><div class="content-meta"><h3>Practice Room Daily VLOG</h3><p>2022.03 · Practice Room</p></div><button class="select-toggle">Add to Space</button></article>
+          <article class="content-item selected" data-select-item><div class="content-thumb">Variety<br>12:45</div><div class="content-meta"><h3>Run BTS Variety Highlights</h3><p>2022.11 · Variety</p></div><button class="select-toggle">✓</button></article>
+          <article class="content-item" data-select-item><div class="content-thumb">Stage<br>4:02</div><div class="content-meta"><h3>Black Swan Stage 4K</h3><p>2020.02 · Performance</p></div><button class="select-toggle">Add to Space</button></article>
+        </div>
+
+        <div class="sticky-bottom-card">
+          <div><strong id="selected-icons">⬡ ⬡ ⬡</strong><p class="post-body" style="margin:3px 0 0;"><span id="selected-count-bottom">3</span> items selected</p></div>
+          <button class="purple-pill" data-go="build-space">Next: Build Space</button>
+        </div>
+      </div>
+
+      <div class="page-label">Page 15 Select Content</div>
+    </section>
+
+    <section class="screen" id="build-space">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Build Space</div><button class="mail" data-go="share">↗</button></header>
+
+      <div class="section">
+        <div class="section-title"><h2>Build Your Space</h2><span>⬡ Preview AR</span></div>
+        <div class="preview-box"><strong>3D Preview</strong><span>↻ ⊙</span><p>Arrange your BTS narrative content in AR space.</p></div>
+
+        <div class="section-title"><h2>Arrange Narrative Content</h2><span>Drag to reorder</span></div>
+        <div class="feed-list">
+          <div class="narrative-list" id="narrative-list" aria-label="Draggable narrative content list">
+            <article class="narrative-item" draggable="true"><div class="selected-mark">1</div><div class="narrative-meta"><h3>BTS IN THE SOOP Highlights</h3><p>Vlog</p></div><button class="inline-action">×</button></article>
+            <article class="narrative-item" draggable="true"><div class="selected-mark">2</div><div class="narrative-meta"><h3>Butter MV Behind The Scenes</h3><p>Official</p></div><button class="inline-action">×</button></article>
+            <article class="narrative-item" draggable="true"><div class="selected-mark">3</div><div class="narrative-meta"><h3>BTS Performance Stage 4K</h3><p>Performance</p></div><button class="inline-action">×</button></article>
+          </div>
+          <article class="post-card input-card"><textarea rows="3" placeholder="Add narrative text for this content..."></textarea></article>
+          <button class="purple-pill" data-go="select-content">＋ Add More Content</button>
+        </div>
+
+        <div class="section-title" style="margin-top:22px;"><h2>Set Atmosphere</h2><span>Settings</span></div>
+        <article class="setting-card"><h3>Background Music</h3><p>BTS - Film Out <span style="color:#2f9dcc;font-weight:520;">Change</span> · Use FanCreate</p></article>
+        <article class="setting-card"><h3>Lighting</h3><p>Soft sky-blue lighting with warm forest ambience.</p></article>
+
+        <div class="section-title" style="margin-top:22px;"><h2>Access Settings</h2><span>Monetization Info</span></div>
+        <div class="publish-option access-option selected" data-access-option><div class="publish-radio">✓</div><div><h3>Free Access</h3><p>All fans can visit for free.</p></div></div>
+        <div class="publish-option access-option" data-access-option><div class="publish-radio">○</div><div><h3>Paid Entry</h3><p>Set a ticket price — revenue split 80:20 between creator and HYBE.</p></div></div>
+        <div class="publish-option access-option" data-access-option><div class="publish-radio">○</div><div><h3>Limited Time</h3><p>Set an open window — scarcity drives visit intent.</p></div></div>
+
+        <button class="purple-pill" data-go="ar" data-toast="Space published">Publish Space</button>
+      </div>
+
+      <div class="page-label">Page 16 Build Space</div>
+    </section>
+
+    <section class="screen" id="ar-live-scan">
+      <div class="ar-live-shell interactive-ar">
+        <div class="ar-camera-bg">
+          <div class="room-pan room-pan-1 active"></div>
+          <div class="room-pan room-pan-2"></div>
+        </div>
+
+        <div class="scan-line"></div>
+        <div class="ar-scan-frame"></div>
+        <div class="ar-particle one"></div>
+        <div class="ar-particle two"></div>
+        <div class="ar-particle three"></div>
+        <div class="ar-particle four"></div>
+
+        <div class="ar-top-ui">
+          <button class="ar-glass-btn" data-back>‹</button>
+          <div class="ar-status-pill"><span class="ar-status-dot"></span>Idol room connected</div>
+          <button class="ar-glass-btn" data-go="share">↗</button>
+        </div>
+
+        <div class="idol-layer"></div>
+
+        <div class="ar-chat-bubble">
+          <h3>BTS Virtual Message</h3>
+          <p>“Welcome to my room. Move your phone around and collect the light moments with me.”</p>
+        </div>
+
+        <div class="ar-bottom-panel">
+          <h2>BTS IN THE SOOP · AR Room</h2>
+          <p>The idol layer appears inside your room. Say hi, take a photo, or collect a light moment from the AR space.</p>
+          <div class="ar-action-row">
+            <button class="ar-action-chip" data-toast="Idol greeting played" data-room-change>Say Hi</button>
+            <button class="ar-action-chip" data-toast="AR photo saved">Photo</button>
+            <button class="ar-action-chip" data-toast="Light moment collected" data-hide-idol>Collect</button>
+          </div>
+        </div>
+      </div>
+      <div class="page-label">Page 09.5 Live AR Interaction</div>
+    </section>
+
+    <section class="screen" id="scan-room-page">
+      <div class="ar-live-shell simple-scan">
+        <div class="ar-camera-bg single-room-bg">
+          <div class="room-pan room-pan-1 active"></div>
+        </div>
+        <div class="scan-line"></div>
+        <div class="ar-scan-frame"></div>
+        <div class="ar-top-ui">
+          <button class="ar-glass-btn" data-back>‹</button>
+          <div class="ar-status-pill"><span class="ar-status-dot"></span>Scanning room</div>
+          <button class="ar-glass-btn" data-go="share">↗</button>
+        </div>
+      </div>
+      <div class="page-label">Page 09.6 Scan Room</div>
+    </section>
+
+    <section class="screen" id="share">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Share</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section"><div class="section-title"><h2>Share Work</h2><span>↗Share</span></div><div class="menu-list"><article class="menu-item" data-toast="Copied link"><div class="menu-icon">🔗</div><div class="menu-text"><h3>Copy Link</h3><p>Copy the current work or AR space link.</p></div><div class="menu-arrow">›</div></article><article class="menu-item" data-toast="Shared to Weverse"><div class="menu-icon">⌂</div><div class="menu-text"><h3>Share to Weverse Feed</h3><p>Post it to fans in the same artist community.</p></div><div class="menu-arrow">›</div></article><article class="menu-item" data-toast="Saved as draft"><div class="menu-icon">✦</div><div class="menu-text"><h3>Save as Draft</h3><p>Continue editing and publish later.</p></div><div class="menu-arrow">›</div></article></div></div><div class="page-label">Page 10 Share</div>
+    </section>
+
+    <section class="screen" id="comments">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Comments</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section"><div class="section-title"><h2>Comments 348</h2><span>◎</span></div><div class="feed-list"><article class="post-card"><p class="post-body">This cover really fits the NewJeans mood!</p></article><article class="post-card"><p class="post-body">The AR room also feels close to IN THE SOOP.</p></article><article class="post-card input-card"><h3>Add Comment</h3><input placeholder="Write a comment..." /><button class="purple-pill" data-toast="Comment added">Post</button></article></div></div><div class="page-label">Page 11 Comments</div>
+    </section>
+
+    <section class="screen" id="new-create">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">New Create</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section"><div class="section-title"><h2>New FanCreate</h2><span>Step 1</span></div><article class="post-card input-card"><h3>Choose Creation Type</h3><select><option>AI Music</option><option>Fan Art</option><option>Fan Fiction</option><option>MV Edit</option></select><h3 style="margin-top:12px;">Enter Your Idea</h3><textarea rows="5" placeholder="Describe your fan creation idea..."></textarea><button class="purple-pill" data-go="music-studio">Start Generating ✦</button></article></div><div class="page-label">Page 12 New Create</div>
+    </section>
+
+    <section class="screen" id="music-studio">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Music Studio</div><button class="mail" data-go="publish-work">↗</button></header>
+
+      <div class="section">
+        <div class="section-title"><h2>AI Music Studio</h2><span>♪</span></div>
+        <article class="studio-panel">
+          <div class="studio-header">
+            <div class="studio-cover">♪</div>
+            <div>
+              <h3>Name your work...</h3>
+              <p>BTS · Ballad · 60s</p>
+            </div>
+          </div>
+
+          <div class="studio-control">
+            <label>Work Title</label>
+            <input placeholder="Name your work..." />
+          </div>
+
+          <div class="studio-control">
+            <label>Artist & Style</label>
+            <select>
+              <option>BTS · Ballad</option>
+              <option>SEVENTEEN · Performance Pop</option>
+              <option>NewJeans · Pop Remix</option>
+              <option>LE SSERAFIM · Dance Track</option>
+            </select>
+          </div>
+
+          <div class="studio-control">
+            <label>Describe your music idea</label>
+            <textarea rows="4" placeholder="A soft emotional track inspired by BTS IN THE SOOP..."></textarea>
+          </div>
+
+          <div class="studio-time"><button class="inline-action" data-toast="Playing demo...">▶</button><div class="studio-bar"><span></span></div><span>60s</span></div>
+          <button class="purple-pill" data-toast="AI music generated">Generate Music</button>
+          <button class="purple-pill" data-go="publish-work">Publish Work</button>
+        </article>
+      </div>
+
+      <div class="page-label">Page 13 Music Studio</div>
+    </section>
+
+    <section class="screen" id="publish-work">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div>
+      <header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo">Publish Work</div><button class="mail" data-go="messages">✉</button></header>
+
+      <div class="section publish-page">
+        <div class="section-title"><h2>Choose Publish Method</h2><span>♪</span></div>
+        <article class="studio-panel compact-work-card">
+          <div class="studio-header">
+            <div class="studio-cover">♪</div>
+            <div><h3>Name your work...</h3><p>BTS · Ballad · 60s</p></div>
+          </div>
+        </article>
+
+        <div class="publish-choice-list">
+          <div class="publish-option publish-choice selected" data-publish-option>
+            <div class="publish-radio">✓</div>
+            <div class="publish-icon">◉</div>
+            <div class="publish-copy"><h3>Post to Weverse Community</h3><p>Visible to all fans — earn community engagement.</p></div>
+          </div>
+
+          <div class="publish-option publish-choice" data-publish-option>
+            <div class="publish-radio">○</div>
+            <div class="publish-icon">🏆</div>
+            <div class="publish-copy"><h3>Submit to BTS Album Brief</h3><p>Selected works earn official certification + royalty eligibility.</p></div>
+          </div>
+
+          <div class="publish-option publish-choice" data-publish-option>
+            <div class="publish-radio">○</div>
+            <div class="publish-icon">🎁</div>
+            <div class="publish-copy"><h3>Apply for Merch License</h3><p>After HYBE review, your work may be licensed for physical merchandise with royalty share.</p></div>
+          </div>
+        </div>
+
+        <article class="post-card license-card">
+          <div class="section-title"><h2>Copyright & License Info</h2><span>▾</span></div>
+          <p class="post-body">Choose how HYBE may handle your generated work.</p>
+          <div class="license-option selected" data-license-choice>
+            <div class="publish-radio">✓</div>
+            <div>
+              <h3>Allow HYBE Use</h3>
+              <p>I agree that my generated content may be reviewed and used for idol activities, official campaigns, or artist-related events.</p>
+            </div>
+          </div>
+          <div class="license-option" data-license-choice>
+            <div class="publish-radio">○</div>
+            <div>
+              <h3>Fan Community Only</h3>
+              <p>I do not agree to official use. I can still post my work in fan communities, and HYBE will not store or reuse the related content.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="post-card tag-card">
+          <h3>Add Tags</h3>
+          <div class="tag-row selectable-tags">
+            <span class="tag-chip selectable selected" data-tag-toggle>#ARMY</span>
+            <span class="tag-chip selectable selected" data-tag-toggle>#MusicCreation</span>
+            <span class="tag-chip selectable selected" data-tag-toggle>#BTS_NewAlbum</span>
+            <span class="tag-chip add-tag" data-toast="Tag editor opened">+ Add Tag</span>
+          </div>
+          <button class="purple-pill" data-go="create" data-toast="Work published. Returning to Create.">Publish</button>
+        </article>
+      </div>
+
+      <div class="page-label">Page 14 Publish Work</div>
+    </section>
+
+    <section class="screen" id="generic-detail">
+      <div class="status-bar"><div>9:41</div><div class="status-right"><span>5G</span><span>100%</span></div></div><header class="app-header"><button class="round-btn back" data-back>‹</button><div class="logo" id="detail-title">Detail</div><button class="mail" data-go="messages">✉</button></header>
+      <div class="section"><article class="post-card"><div class="image-box" id="detail-icon">✦</div><h3 id="detail-heading">Detail page</h3><p class="post-body" id="detail-copy">This page is connected to the selected button.</p><button class="purple-pill" data-back>Back</button></article></div><div class="page-label" id="detail-label">Detail Page</div>
+    </section>
+
+    <nav class="bottom-nav" aria-label="bottom navigation">
+      <button class="nav-item active" data-go="home"><div class="icon">⌂</div><div>Feed</div></button>
+      <button class="nav-item" data-go="create"><div class="icon">✦</div><div>Create</div></button>
+      <button class="nav-item" data-go="ar"><div class="icon">⬡</div><div>AR Space</div></button>
+      <button class="nav-item" data-go="profile"><div class="icon">◎</div><div>Profile</div></button>
+    </nav>
+    <div class="toast" id="toast"></div>
+  </main>
+
+  <script>
+    const screens = [...document.querySelectorAll('.screen')];
+    const navs = [...document.querySelectorAll('.nav-item')];
+    const historyStack = ['home'];
+    const genericPages = {
+      'artist-bts': ['BTS', 'BTS Official', 'Official artist community with BTS posts, FanCreate works, and IdolVerse AR access.', 'BTS', 'Artist Detail'],
+      'artist-svt': ['SEVENTEEN', 'SEVENTEEN Official', 'Performance-focused community with stage clips, variety highlights and fan projects.', 'SVT', 'Artist Detail'],
+      'artist-txt': ['TXT', 'TOMORROW X TOGETHER', 'Youth storytelling community with concept albums, visual content and fan edits.', 'TXT', 'Artist Detail'],
+      'artist-enhypen': ['ENHYPEN', 'ENHYPEN Official', 'Immersive concept community with global fans, stage content and AR-ready narratives.', 'EN', 'Artist Detail'],
+      'artist-lesserafim': ['LE SSERAFIM', 'LE SSERAFIM Official', 'Bold performance community for dance, fashion, fan art and video edits.', 'LSF', 'Artist Detail'],
+      'artist-newjeans': ['NewJeans', 'NewJeans Official', 'Fresh pop community for remix culture, short-form edits and soft visual creation.', 'NJ', 'Artist Detail'],
+      'artist-illit': ['ILLIT', 'ILLIT Official', 'New-generation community for bright concepts, fan edits and short-form creation.', 'IL', 'Artist Detail'],
+      'likes': ['Likes', '♡2.4k', 'View liked users and engagement data.', '♡', 'Page 15 Likes'],
+      'tools-all': ['Tools', 'Creation Tools · All', 'View all FanCreate tool entries.', '✦', 'Page 16 Tools All'],
+      'drafts': ['Drafts', 'My Drafts', 'View all unfinished fan creation drafts.', '◎', 'Page 17 Drafts'],
+      'fan-art': ['Fan Art', 'Fan Art', 'Create posters, avatars, support graphics, and visual works with or without AI.', '✦', 'Page 18 Fan Art'],
+      'fan-fiction': ['Fan Fiction', 'Fan Fiction', 'Write fan stories, character moments, and fan narrative content.', '⌁', 'Page 19 Fan Fiction'],
+      'mv-edit': ['MV Edit', 'MV Edit', 'Edit MV clips, stage videos, and short-form transitions.', '▶', 'Page 20 MV Edit'],
+      'scan-room': ['Scan Room', 'Scan Room', 'Scan a real room and place AR fan support elements.', '⌖', 'Page 21 Scan Room'],
+      'ar-list': ['AR Spaces', 'Recommended AR Spaces · All', 'View all available IdolVerse AR spaces.', '⬡', 'Page 22 AR Spaces All'],
+      'mission-detail': ['Mission', 'Global AR Fan Mission', 'Light up the global fan support map and complete AR interaction tasks.', '✦', 'Page 23 Mission Detail'],
+      'membership': ['Membership', 'BTS Official Membership', 'View membership benefits, exclusive content, and special activity access.', 'BTS', 'Page 24 Membership'],
+      'settings': ['Settings', 'Account Settings', 'Manage notifications, privacy, language, and profile details.', '◎', 'Page 25 Settings'],
+      'history': ['History', 'Saved & History', 'View saved posts, creative works, and AR spaces.', '♡', 'Page 26 History'],
+      'permissions': ['Permissions', 'Creation Rights & Data', 'Manage AI creation permissions, work visibility, and engagement data.', '◎', 'Page 27 Permissions']
+    };
+
+    function show(id, push = true) {
+      if (genericPages[id]) {
+        const [title, heading, copy, icon, label] = genericPages[id];
+        document.getElementById('detail-title').textContent = title;
+        document.getElementById('detail-heading').textContent = heading;
+        document.getElementById('detail-copy').textContent = copy;
+        document.getElementById('detail-icon').textContent = icon;
+        document.getElementById('detail-label').textContent = label;
+        id = 'generic-detail';
+      }
+      screens.forEach(s => s.classList.toggle('active', s.id === id));
+      navs.forEach(n => n.classList.toggle('active', n.dataset.go === id));
+
+      if (id === 'build-space') setupNarrativeReorder();
+
+      if (id === 'ar-live-scan') {
+        document.querySelector('#ar-live-scan .idol-layer')?.classList.remove('hide');
+        document.querySelector('#ar-live-scan .room-pan-1')?.classList.add('active');
+        document.querySelector('#ar-live-scan .room-pan-2')?.classList.remove('active');
+      }
+
+      if (push && historyStack[historyStack.length - 1] !== id) historyStack.push(id);
+      window.scrollTo(0, 0);
+    }
+
+    function goBack() {
+      if (historyStack.length > 1) historyStack.pop();
+      const last = historyStack[historyStack.length - 1] || 'home';
+      show(last, false);
+    }
+
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1400);
+    }
+
+    function updateSelectedContentCount() {
+      const count = document.querySelectorAll('[data-select-item].selected').length;
+      const top = document.getElementById('selected-count-top');
+      const bottom = document.getElementById('selected-count-bottom');
+      const icons = document.getElementById('selected-icons');
+      if (top) top.textContent = count;
+      if (bottom) bottom.textContent = count;
+      if (icons) icons.textContent = count > 0 ? Array(count).fill('⬡').join(' ') : 'No items';
+    }
+
+
+    function updateNarrativeOrderNumbers() {
+      document.querySelectorAll('#narrative-list .narrative-item').forEach((item, index) => {
+        const mark = item.querySelector('.selected-mark');
+        if (mark) mark.textContent = index + 1;
+      });
+    }
+
+    function setupNarrativeReorder() {
+      const list = document.getElementById('narrative-list');
+      if (!list || list.dataset.reorderReady === 'true') return;
+      list.dataset.reorderReady = 'true';
+
+      let draggedItem = null;
+      let pointerDraggedItem = null;
+      let startY = 0;
+
+      function getInsertBeforeItem(y, excludeItem) {
+        const items = [...list.querySelectorAll('.narrative-item:not(.dragging)')]
+          .filter(item => item !== excludeItem);
+        return items.find(item => {
+          const box = item.getBoundingClientRect();
+          return y < box.top + box.height / 2;
+        });
+      }
+
+      function moveItem(item, y) {
+        const beforeItem = getInsertBeforeItem(y, item);
+        if (beforeItem) {
+          list.insertBefore(item, beforeItem);
+        } else {
+          list.appendChild(item);
+        }
+        updateNarrativeOrderNumbers();
+      }
+
+      list.querySelectorAll('.narrative-item').forEach(item => {
+        item.setAttribute('draggable', 'true');
+
+        item.addEventListener('dragstart', event => {
+          draggedItem = item;
+          item.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', 'reorder');
+        });
+
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          draggedItem = null;
+          updateNarrativeOrderNumbers();
+        });
+
+        item.addEventListener('pointerdown', event => {
+          if (event.target.closest('button')) return;
+          pointerDraggedItem = item;
+          startY = event.clientY;
+          item.classList.add('dragging');
+          item.setPointerCapture(event.pointerId);
+        });
+
+        item.addEventListener('pointermove', event => {
+          if (pointerDraggedItem !== item) return;
+          if (Math.abs(event.clientY - startY) < 4) return;
+          moveItem(item, event.clientY);
+        });
+
+        item.addEventListener('pointerup', event => {
+          if (pointerDraggedItem === item) {
+            item.classList.remove('dragging');
+            pointerDraggedItem = null;
+            updateNarrativeOrderNumbers();
+          }
+        });
+
+        item.addEventListener('pointercancel', () => {
+          item.classList.remove('dragging');
+          pointerDraggedItem = null;
+        });
+      });
+
+      list.addEventListener('dragover', event => {
+        if (!draggedItem) return;
+        event.preventDefault();
+        moveItem(draggedItem, event.clientY);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const selectItem = e.target.closest('[data-select-item]');
+      const accessOption = e.target.closest('[data-access-option]');
+      const publishOption = e.target.closest('[data-publish-option]');
+      const tagToggle = e.target.closest('[data-tag-toggle]');
+      const licenseChoice = e.target.closest('[data-license-choice]');
+      const goTarget = e.target.closest('[data-go]');
+      const backTarget = e.target.closest('[data-back]');
+      const toastTarget = e.target.closest('[data-toast]');
+      const roomChangeTarget = e.target.closest('[data-room-change]');
+      const hideIdolTarget = e.target.closest('[data-hide-idol]');
+
+      if (selectItem) {
+        selectItem.classList.toggle('selected');
+        const btn = selectItem.querySelector('.select-toggle');
+        if (btn) btn.textContent = selectItem.classList.contains('selected') ? '✓' : 'Add to Space';
+        updateSelectedContentCount();
+        return;
+      }
+
+      if (accessOption) {
+        document.querySelectorAll('[data-access-option]').forEach(option => {
+          option.classList.remove('selected');
+          const radio = option.querySelector('.publish-radio');
+          if (radio) radio.textContent = '○';
+        });
+        accessOption.classList.add('selected');
+        const radio = accessOption.querySelector('.publish-radio');
+        if (radio) radio.textContent = '✓';
+        return;
+      }
+
+      if (publishOption) {
+        publishOption.classList.toggle('selected');
+        const radio = publishOption.querySelector('.publish-radio');
+        if (radio) radio.textContent = publishOption.classList.contains('selected') ? '✓' : '○';
+        return;
+      }
+
+      if (tagToggle) {
+        tagToggle.classList.toggle('selected');
+        return;
+      }
+
+      if (licenseChoice) {
+        document.querySelectorAll('[data-license-choice]').forEach(option => {
+          option.classList.remove('selected');
+          const radio = option.querySelector('.publish-radio');
+          if (radio) radio.textContent = '○';
+        });
+        licenseChoice.classList.add('selected');
+        const radio = licenseChoice.querySelector('.publish-radio');
+        if (radio) radio.textContent = '✓';
+        return;
+      }
+
+      if (goTarget) show(goTarget.dataset.go);
+      if (backTarget) goBack();
+      if (toastTarget) toast(toastTarget.dataset.toast);
+
+      if (roomChangeTarget) {
+        document.querySelector('#ar-live-scan .room-pan-1')?.classList.remove('active');
+        document.querySelector('#ar-live-scan .room-pan-2')?.classList.add('active');
+      }
+
+      if (hideIdolTarget) {
+        document.querySelector('#ar-live-scan .idol-layer')?.classList.add('hide');
+      }
+    });
+
+
+    setupNarrativeReorder();
+
+  </script>
+</body>
+</html>
