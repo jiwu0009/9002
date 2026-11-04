@@ -3,48 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="FishPal and Gull-Shadow prototypes: stages 1 to 5, followed by the final version.">
+  <meta name="description" content="Explore eight FishPal and Gull-Shadow prototypes with page previews, organised into five development stages and a final version.">
+  <meta name="theme-color" content="#2853a1">
   <title>9202 — Prototype Development</title>
   <style>
     * { box-sizing: border-box; }
-    html { scroll-padding-top: 20px; }
-    body { margin: 0; background: #fff; color: #222; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
-    main { max-width: 860px; margin: 0 auto; padding: 44px 24px 64px; }
-    h1 { margin: 0 0 8px; font-size: 30px; }
-    header p { margin: 0; color: #666; }
-    nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 36px; }
-    nav a { padding: 6px 14px; border: 1px solid #ccc; border-radius: 4px; }
+    html { scroll-padding-top: 24px; }
+    body { margin: 0; background: #fafbfc; color: #202735; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
+    main { max-width: 1080px; margin: 0 auto; padding: 48px 28px 64px; }
+    header .eyebrow { margin: 0 0 12px; color: #2853a1; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+    h1 { margin: 0 0 8px; font-size: clamp(26px, 4vw, 38px); letter-spacing: -.03em; }
+    header p { margin: 0; color: #697383; font-size: 15px; }
+    nav { display: flex; flex-wrap: wrap; gap: 9px; margin: 24px 0 36px; }
+    nav a { min-width: 38px; text-align: center; padding: 7px 13px; border: 1px solid #d7dce5; background: #fff; border-radius: 6px; font-size: 14px; }
     a { color: #2853a1; text-underline-offset: 3px; }
-    nav a, li > a, .final-link { text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    nav a, .preview, .open, .final-link { text-decoration: none; }
+    nav a:hover, .open:hover { background: #eef3fb; border-color: #2853a1; }
     a:focus-visible { outline: 3px solid #2853a1; outline-offset: 5px; }
-    section { margin-top: 28px; padding-top: 22px; border-top: 1px solid #ddd; }
-    h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 20px; }
-    .number { display: inline-flex; justify-content: center; align-items: center; width: 30px; height: 30px; flex-shrink: 0; border: 1px solid #bbb; border-radius: 4px; font-size: 17px; }
-    ul { list-style: none; padding: 0; margin: 0; }
-    li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 14px 0; border-bottom: 1px solid #eee; }
-    li:last-child { border-bottom: 0; }
-    li strong { display: block; font-size: 15px; font-weight: 600; }
-    li div > span { display: block; margin-top: 3px; font-size: 13px; color: #777; }
-    li > a { flex-shrink: 0; padding: 7px 13px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-    #final { margin-top: 36px; padding-top: 26px; }
-    #final p { margin: 0 0 16px; color: #666; font-size: 14px; }
-    .final-link { display: inline-block; background: #2853a1; color: #fff; padding: 11px 20px; border-radius: 4px; }
+    section { margin-top: 32px; padding-top: 24px; border-top: 1px solid #dfe3ea; }
+    h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; font-size: 20px; }
+    .number { display: inline-flex; justify-content: center; align-items: center; width: 32px; height: 32px; flex-shrink: 0; background: #2853a1; color: #fff; border-radius: 6px; font-size: 16px; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 20px; }
+    .cards.single { grid-template-columns: 1fr; }
+    .card { min-width: 0; border: 1px solid #dfe3ea; border-radius: 10px; background: #fff; overflow: hidden; }
+    .preview { position: relative; display: block; background: #e8edf2; border-bottom: 1px solid #e3e7ed; }
+    .preview img { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 760; object-fit: cover; }
+    .single .preview { max-height: 520px; overflow: hidden; }
+    .single .preview img { max-height: 520px; object-fit: contain; }
+    .preview-label { position: absolute; top: 12px; left: 12px; padding: 4px 9px; border: 1px solid #dfe3ea; border-radius: 4px; background: #fffffff2; color: #394c66; font-size: 11px; }
+    .card-body { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px; }
+    .project { display: block; margin-bottom: 4px; color: #697383; font-size: 12px; }
+    h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    .open { flex-shrink: 0; padding: 7px 12px; border: 1px solid #d7dce5; border-radius: 5px; font-size: 13px; }
+    #final { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 38px; padding: 24px; border: 1px solid #ccd8ed; border-radius: 10px; background: #edf3fc; }
+    #final h2 { margin: 0 0 6px; font-size: 23px; }
+    #final p { margin: 0; color: #536781; font-size: 14px; }
+    .final-link { display: inline-block; flex-shrink: 0; background: #2853a1; color: #fff; padding: 11px 18px; border-radius: 6px; font-size: 14px; }
+    .final-link:hover { background: #204684; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    @media (max-width: 520px) {
+    @media (max-width: 640px) {
       main { padding: 28px 18px 44px; }
-      h1 { font-size: 26px; }
+      .cards { grid-template-columns: 1fr; gap: 16px; }
       h2 { font-size: 18px; }
-      li { gap: 12px; }
-      li strong { font-size: 14px; }
+      .card-body { padding: 15px; }
+      h3 { font-size: 15px; }
+      #final { display: block; padding: 20px; }
+      .final-link { margin-top: 18px; }
     }
   </style>
 </head>
 <body>
   <main>
     <header>
+      <p class="eyebrow">IDEA9202 · DEVELOPMENT ARCHIVE</p>
       <h1>9202 Prototype Development</h1>
-      <p>FishPal &amp; Gull-Shadow</p>
+      <p>FishPal &amp; Gull-Shadow · Eight prototypes, five development stages.</p>
     </header>
     <nav aria-label="Development stages">
       <a href="#step-1">1</a>
@@ -56,69 +69,117 @@
     </nav>
     <section id="step-1" aria-labelledby="heading-1">
       <h2 id="heading-1"><span class="number">1</span>First spatial study</h2>
-      <ul>
-        <li>
-          <div><strong>First spatial study</strong><span>FishPal + Gull-Shadow</span></div>
-          <a href="prototypes/01-spatial-study.html" target="_blank" rel="noopener">Open<span class="sr-only"> First spatial study in a new tab</span> ↗</a>
+      <ul class="cards single">
+        <li class="card">
+          <a class="preview" href="prototypes/01-spatial-study.html" target="_blank" rel="noopener" aria-label="Open First spatial study in a new tab">
+            <img src="previews/01.jpg" alt="Page preview of First spatial study" width="1200" height="760" fetchpriority="high" decoding="async">
+            <span class="preview-label">Preview · 01</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">FishPal + Gull-Shadow</span><h3>First spatial study</h3></div>
+            <a class="open" href="prototypes/01-spatial-study.html" target="_blank" rel="noopener">Open<span class="sr-only"> First spatial study in a new tab</span> ↗</a>
+          </div>
         </li>
       </ul>
     </section>
 
     <section id="step-2" aria-labelledby="heading-2">
       <h2 id="heading-2"><span class="number">2</span>Waterfront study</h2>
-      <ul>
-        <li>
-          <div><strong>A little world by the bay</strong><span>Gull-Shadow</span></div>
-          <a href="prototypes/02-bay-diorama.html" target="_blank" rel="noopener">Open<span class="sr-only"> A little world by the bay in a new tab</span> ↗</a>
+      <ul class="cards single">
+        <li class="card">
+          <a class="preview" href="prototypes/02-bay-diorama.html" target="_blank" rel="noopener" aria-label="Open A little world by the bay in a new tab">
+            <img src="previews/02.jpg" alt="Page preview of A little world by the bay" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 02</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">Gull-Shadow</span><h3>A little world by the bay</h3></div>
+            <a class="open" href="prototypes/02-bay-diorama.html" target="_blank" rel="noopener">Open<span class="sr-only"> A little world by the bay in a new tab</span> ↗</a>
+          </div>
         </li>
       </ul>
     </section>
 
     <section id="step-3" aria-labelledby="heading-3">
       <h2 id="heading-3"><span class="number">3</span>Individual interactions</h2>
-      <ul>
-        <li>
-          <div><strong>FishPal comes to life</strong><span>FishPal</span></div>
-          <a href="prototypes/03-fishpal-diorama.html" target="_blank" rel="noopener">Open<span class="sr-only"> FishPal comes to life in a new tab</span> ↗</a>
+      <ul class="cards ">
+        <li class="card">
+          <a class="preview" href="prototypes/03-fishpal-diorama.html" target="_blank" rel="noopener" aria-label="Open FishPal comes to life in a new tab">
+            <img src="previews/03.jpg" alt="Page preview of FishPal comes to life" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 03</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">FishPal</span><h3>FishPal comes to life</h3></div>
+            <a class="open" href="prototypes/03-fishpal-diorama.html" target="_blank" rel="noopener">Open<span class="sr-only"> FishPal comes to life in a new tab</span> ↗</a>
+          </div>
         </li>
-        <li>
-          <div><strong>Following a digital shadow</strong><span>Gull-Shadow</span></div>
-          <a href="prototypes/04-gull-interaction.html" target="_blank" rel="noopener">Open<span class="sr-only"> Following a digital shadow in a new tab</span> ↗</a>
+        <li class="card">
+          <a class="preview" href="prototypes/04-gull-interaction.html" target="_blank" rel="noopener" aria-label="Open Following a digital shadow in a new tab">
+            <img src="previews/04.jpg" alt="Page preview of Following a digital shadow" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 04</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">Gull-Shadow</span><h3>Following a digital shadow</h3></div>
+            <a class="open" href="prototypes/04-gull-interaction.html" target="_blank" rel="noopener">Open<span class="sr-only"> Following a digital shadow in a new tab</span> ↗</a>
+          </div>
         </li>
       </ul>
     </section>
 
     <section id="step-4" aria-labelledby="heading-4">
       <h2 id="heading-4"><span class="number">4</span>Real-site models</h2>
-      <ul>
-        <li>
-          <div><strong>Discovery in the real market</strong><span>FishPal</span></div>
-          <a href="prototypes/05-fishpal-real-site.html" target="_blank" rel="noopener">Open<span class="sr-only"> Discovery in the real market in a new tab</span> ↗</a>
+      <ul class="cards ">
+        <li class="card">
+          <a class="preview" href="prototypes/05-fishpal-real-site.html" target="_blank" rel="noopener" aria-label="Open Discovery in the real market in a new tab">
+            <img src="previews/05.jpg" alt="Page preview of Discovery in the real market" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 05</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">FishPal</span><h3>Discovery in the real market</h3></div>
+            <a class="open" href="prototypes/05-fishpal-real-site.html" target="_blank" rel="noopener">Open<span class="sr-only"> Discovery in the real market in a new tab</span> ↗</a>
+          </div>
         </li>
-        <li>
-          <div><strong>Play along the waterfront</strong><span>Gull-Shadow</span></div>
-          <a href="prototypes/06-gull-real-site.html" target="_blank" rel="noopener">Open<span class="sr-only"> Play along the waterfront in a new tab</span> ↗</a>
+        <li class="card">
+          <a class="preview" href="prototypes/06-gull-real-site.html" target="_blank" rel="noopener" aria-label="Open Play along the waterfront in a new tab">
+            <img src="previews/06.jpg" alt="Page preview of Play along the waterfront" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 06</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">Gull-Shadow</span><h3>Play along the waterfront</h3></div>
+            <a class="open" href="prototypes/06-gull-real-site.html" target="_blank" rel="noopener">Open<span class="sr-only"> Play along the waterfront in a new tab</span> ↗</a>
+          </div>
         </li>
       </ul>
     </section>
 
     <section id="step-5" aria-labelledby="heading-5">
       <h2 id="heading-5"><span class="number">5</span>Integrated prototypes</h2>
-      <ul>
-        <li>
-          <div><strong>Bringing the experiences together</strong><span>FishPal + Gull-Shadow</span></div>
-          <a href="prototypes/07-integrated-study.html" target="_blank" rel="noopener">Open<span class="sr-only"> Bringing the experiences together in a new tab</span> ↗</a>
+      <ul class="cards ">
+        <li class="card">
+          <a class="preview" href="prototypes/07-integrated-study.html" target="_blank" rel="noopener" aria-label="Open Bringing the experiences together in a new tab">
+            <img src="previews/07.jpg" alt="Page preview of Bringing the experiences together" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 07</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">FishPal + Gull-Shadow</span><h3>Bringing the experiences together</h3></div>
+            <a class="open" href="prototypes/07-integrated-study.html" target="_blank" rel="noopener">Open<span class="sr-only"> Bringing the experiences together in a new tab</span> ↗</a>
+          </div>
         </li>
-        <li>
-          <div><strong>A more detailed shared experience</strong><span>FishPal + Gull-Shadow</span></div>
-          <a href="prototypes/08-integrated-refinement.html" target="_blank" rel="noopener">Open<span class="sr-only"> A more detailed shared experience in a new tab</span> ↗</a>
+        <li class="card">
+          <a class="preview" href="prototypes/08-integrated-refinement.html" target="_blank" rel="noopener" aria-label="Open A more detailed shared experience in a new tab">
+            <img src="previews/08.jpg" alt="Page preview of A more detailed shared experience" width="1200" height="760" loading="lazy" decoding="async">
+            <span class="preview-label">Preview · 08</span>
+          </a>
+          <div class="card-body">
+            <div><span class="project">FishPal + Gull-Shadow</span><h3>A more detailed shared experience</h3></div>
+            <a class="open" href="prototypes/08-integrated-refinement.html" target="_blank" rel="noopener">Open<span class="sr-only"> A more detailed shared experience in a new tab</span> ↗</a>
+          </div>
         </li>
       </ul>
     </section>
 
     <section id="final" aria-labelledby="heading-final">
-      <h2 id="heading-final">Final</h2>
-      <p>The final version of FishPal and Gull-Shadow.</p>
+      <div><h2 id="heading-final">Final</h2>
+      <p>The final version of FishPal and Gull-Shadow.</p></div>
       <a class="final-link" href="https://jiwu0009.github.io/9002/9202/">Open Final Version ↗</a>
     </section>
   </main>
