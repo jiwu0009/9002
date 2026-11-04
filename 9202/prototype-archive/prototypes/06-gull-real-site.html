@@ -1,0 +1,206 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gull Shadow — New Sydney Fish Market / Waterfront</title><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f0f1e9}canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {OutlineEffect} from 'three/addons/effects/OutlineEffect.js';
+/* GULL SHADOW / NEW SYDNEY FISH MARKET, PHOTO-BASED WATERFRONT SLICE.
+Primary reference: BVN architectural photography, dining promenade beneath timber canopy.
+https://www.bvn.com.au/project/new-sydney-fish-market/
+https://cdn.sanity.io/images/o5vscjl2/production/15668c4fe7c70d9e1899bb91e8de8133b1b7de23-11091x8318.jpg
+Existing fabric: diagonal glulam canopy, tall steel columns, pale promenade paving,
+glass balustrade, timber dining tables / metal chairs and lower-level finger wharves.
+No invented seaside shopfront, umbrellas or wooden play platforms are added.
+This is a local photo-based reconstruction; metric dimensions are estimates, not a survey.
+Proposed layer: overhead projectors, tracked gull silhouettes, flush solo/group ripples.
+High viewpoints use an automatic roof cutaway; roof geometry remains in its real position.
+The animation is a staged demonstration, not live tracking of people in the user's room.
+*/
+const P={bg:'#F0F1E9',white:0xf7f7ec,mint:0xc4dfd6,ice:0xaed8db,iceMid:0x89b8c2,deep:0x4c6877,line:0x40555d,orange:0xe9a276,red:0xd88c80,silver:0xb6c8cb,ring:0x8fdad8,lcd:'#B8D9CB',skin:0xf2d5bd};
+const OUT=[.22,.29,.32];
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(P.bg);
+const site=new THREE.Group();site.name='New Sydney Fish Market / covered waterfront dining promenade';scene.add(site);
+const camera=new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,150);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.065;controls.minDistance=7;controls.maxDistance=60;controls.minPolarAngle=.12;controls.maxPolarAngle=Math.PI*.49;
+function reset(){let k=Math.max(1,1.12/camera.aspect);controls.target.set(0,1.3,.2);camera.position.set(27*k,18*k,15*k);controls.update()}
+reset();renderer.domElement.addEventListener('dblclick',reset);renderer.domElement.style.cursor='grab';controls.addEventListener('start',()=>renderer.domElement.style.cursor='grabbing');controls.addEventListener('end',()=>renderer.domElement.style.cursor='grab');
+const effect=new OutlineEffect(renderer,{defaultThickness:.0013,defaultColor:OUT,defaultAlpha:.72});
+scene.add(new THREE.HemisphereLight(0xfff8e7,0xa4bdc4,1.35));const sun=new THREE.DirectionalLight(0xffe4b3,2.6);sun.position.set(9,14,7);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-13,right:13,top:11,bottom:-11,near:1,far:55});sun.shadow.normalBias=.025;sun.shadow.bias=-.0002;sun.shadow.radius=3;scene.add(sun);const fill=new THREE.DirectionalLight(0xc8e7f3,.6);fill.position.set(-7,6,-8);scene.add(fill);
+/* ================= 材质与工具 ================= */
+// 四阶明暗：亮面 / 中间色 / 阴影面 / 接触暗部
+const grad = new THREE.DataTexture(new Uint8Array([95, 95, 95, 255, 150, 150, 150, 255, 205, 205, 205, 255, 255, 255, 255, 255]), 4, 1, THREE.RGBAFormat);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+// 背景结构：细、轻的深灰蓝线
+const toon = (c, o = {}) => { const m = new THREE.MeshToonMaterial({ color: c, gradientMap: grad, ...o }); m.userData.outlineParameters = { thickness: 0.0011, color: OUT, alpha: 0.55 }; return m; };
+// 主体（FishPal、人物、鱼、海鲜、立牌）：更清楚的外轮廓
+const toonF = (c, o = {}) => { const m = toon(c, o); m.userData.outlineParameters = { thickness: 0.0025, color: OUT, alpha: 0.9 }; return m; };
+const noOutline = (m) => { m.userData.outlineParameters = { visible: false }; return m; };
+function add(geo, mat, x = 0, y = 0, z = 0, parent = scene, shadow = true) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z);
+  m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
+}
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry(9202);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  return t;
+}
+const softTex = canvasTex(64, 64, (x) => {
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+});
+// 接触阴影：让物体“站得住”
+const contactMat = noOutline(new THREE.MeshBasicMaterial({ map: softTex, color: P.line, transparent: true, opacity: 0.32, depthWrite: false }));
+function contact(x, z, sx, sz, y = 0.012, parent = scene, op) {
+  const m = add(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), op ? noOutline(contactMat.clone()) : contactMat, x, y, z, parent, false);
+  if (op) m.material.opacity = op;
+  m.scale.set(sx, 1, sz); m.renderOrder = 1; return m;
+}
+
+function makeFish(sp, size) {
+  const g = new THREE.Group();
+  add(new THREE.SphereGeometry(0.5, 20, 14).scale(1, 0.6, 0.36), toonF(sp.body), 0, 0, 0, g);
+  add(new THREE.SphereGeometry(0.42, 16, 10).scale(0.92, 0.36, 0.34), noOutline(toon(sp.belly)), 0.03, -0.12, 0, g, false);
+  const tail = new THREE.Group(); tail.position.x = -0.44; g.add(tail);
+  // 分叉尾鳍
+  const ts = new THREE.Shape(); ts.moveTo(0, 0); ts.lineTo(-0.3, 0.22); ts.quadraticCurveTo(-0.22, 0, -0.3, -0.22); ts.closePath();
+  add(new THREE.ExtrudeGeometry(ts, { depth: 0.03, bevelEnabled: false }).translate(0, 0, -0.015), toonF(sp.fin), 0, 0, 0, tail);
+  const ds = new THREE.Shape(); ds.moveTo(-0.22, 0); ds.quadraticCurveTo(-0.02, 0.2, 0.18, 0); ds.closePath();
+  add(new THREE.ExtrudeGeometry(ds, { depth: 0.02, bevelEnabled: false }).translate(0, 0, -0.01), toonF(sp.fin), -0.02, 0.27, 0, g);
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.06, 10, 8), noOutline(toon(0xffffff)), 0.3, 0.06, 0.15 * s, g, false);
+    add(new THREE.SphereGeometry(0.035, 8, 6), noOutline(toon(P.line)), 0.33, 0.06, 0.175 * s, g, false);
+  }
+  g.scale.setScalar(size);
+  return { g, tail };
+}
+
+
+const cube=new THREE.BoxGeometry(1,1,1);const white=toon(0xf0eee2),steel=toon(0xa4b6ba),darkSteel=toon(0x6d8189);
+function box(x,y,z,w,h,d,mat,parent=site,shadow=true){const m=add(cube,mat,x,y,z,parent,shadow);m.scale.set(w,h,d);return m}
+function rod(a,b,r,mat,parent=site){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);const m=add(new THREE.CylinderGeometry(r,r,d.length(),10),mat,0,0,0,parent,false);m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return m}
+function tube(points,r,mat,parent=site){return add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),28,r,8,false),mat,0,0,0,parent,false)}
+function beam(a,b,w,h,mat,parent=site){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);const m=add(new THREE.BoxGeometry(d.length(),h,w),mat,0,0,0,parent);m.position.copy(A.add(B).multiplyScalar(.5));m.rotation.y=-Math.atan2(d.z,d.x);return m}
+// One complete rectangular slice: promenade to left, lower harbour to right.
+box(0,-.57,0,17.4,.34,12.4,toon(0xb0c6c8));box(-1.83,-.22,0,13.74,.44,12.36,toon(0xd9d9ca));box(-1.83,.007,0,13.7,.02,12.3,noOutline(toon(0xe7e5d7)),site,false);
+const pave=canvasTex(768,768,(c,W,H)=>{c.fillStyle='#e9e7d9';c.fillRect(0,0,W,H);for(let i=0;i<14000;i++){c.fillStyle=i%4?'rgba(102,123,123,.05)':'rgba(255,255,255,.3)';c.fillRect(rnd()*W,rnd()*H,1.6,1.6)}c.strokeStyle='#c8ceca';c.lineWidth=1;for(let x=0;x<=W;x+=192){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();c.beginPath();c.moveTo(0,x);c.lineTo(W,x);c.stroke()}},[4.4,4]);
+add(new THREE.PlaneGeometry(13.65,12.3).rotateX(-Math.PI/2),noOutline(new THREE.MeshToonMaterial({map:pave,color:0xffffff,gradientMap:grad})),-1.84,.022,0,site,false);
+// The real facade is a long industrial screen / glazing line, not a little invented shop.
+const metalScreen=canvasTex(256,256,(c,W,H)=>{c.fillStyle='#9eaaa9';c.fillRect(0,0,W,H);for(let x=0;x<W;x+=5){c.fillStyle=x%10?'#bac3bc':'#7b9394';c.fillRect(x,0,1,H)}c.fillStyle='rgba(235,240,225,.4)';for(let y=0;y<H;y+=9)c.fillRect(0,y,W,1)},[3,2]);
+box(-8.25,2.45,0,.14,4.85,12.2,noOutline(new THREE.MeshToonMaterial({color:0xffffff,map:metalScreen,gradientMap:grad})));box(-8.13,.38,0,.055,.74,12.2,darkSteel);
+for(let z=-5.8;z<=5.9;z+=.68){box(-8.08,1.1,z,.06,1.05,.025,toon(0x6c8288));box(-8.045,1.1,z+.31,.012,.95,.54,noOutline(new THREE.MeshPhysicalMaterial({color:0x86b0bb,metalness:.15,roughness:.23,transparent:true,opacity:.2,depthWrite:false})))}
+box(-8.0,1.78,0,.14,.16,12.2,toon(0xc2cbc6));box(-8.0,4.82,0,.2,.19,12.2,toon(0xd2d8cf));
+// Deep glulam roof / diagonal grid with white infill, as visible in the main photo.
+const wood=canvasTex(512,128,(c,W,H)=>{c.fillStyle='#bd965f';c.fillRect(0,0,W,H);for(let y=0;y<H;y+=4){c.strokeStyle=y%8?'rgba(91,63,37,.14)':'rgba(247,222,167,.22)';c.lineWidth=.6;c.beginPath();for(let x=0;x<W;x+=6)c.lineTo(x,y+Math.sin(x*.024+y)*1.1);c.stroke()}for(let i=0;i<65;i++){c.fillStyle='rgba(85,62,38,.16)';c.beginPath();c.ellipse(rnd()*W,rnd()*H,2+rnd()*4,.9,0,0,Math.PI*2);c.fill()}},[2,1]);
+const timber=noOutline(new THREE.MeshToonMaterial({color:0xf5d7a0,map:wood,gradientMap:grad}));
+const roofStructure=new THREE.Group();roofStructure.name='Existing diagonal glulam canopy / removable cutaway portion';site.add(roofStructure);
+const roofDatum=6.0;
+beam([-8.2,roofDatum,-6],[4.55,roofDatum,-6],.34,.55,timber);beam([-8.2,roofDatum,-6],[-8.2,roofDatum,6],.34,.55,timber);
+beam([4.45,roofDatum,-6],[4.45,roofDatum,6],.32,.6,timber,roofStructure);beam([-8.2,roofDatum,6],[4.55,roofDatum,6],.32,.55,timber,roofStructure);
+beam([-8.1,roofDatum-.04,-5.8],[4.4,roofDatum-.04,-2.2],.22,.48,timber);beam([-8.1,roofDatum-.04,-2.2],[4.4,roofDatum-.04,-5.8],.22,.48,timber);
+for(let z of [-1.8,2.2]){beam([-8.1,roofDatum-.04,z],[4.4,roofDatum-.04,Math.min(6,z+3.6)],.22,.48,timber,roofStructure);beam([-8.1,roofDatum-.04,Math.min(6,z+3.6)],[4.4,roofDatum-.04,z],.22,.48,timber,roofStructure)}
+// Downward-facing infill panels disappear from above without moving the building.
+const roofPanels=new THREE.Group();site.add(roofPanels);const panelMat=noOutline(new THREE.MeshToonMaterial({color:0xeceee2,gradientMap:grad,side:THREE.FrontSide}));add(new THREE.PlaneGeometry(12.65,12.05).rotateX(Math.PI/2),panelMat,-1.86,6.28,0,roofPanels,false);
+for(let z of [-5.7,5.7]){box(4.45,2.99,z,.25,5.98,.31,toon(0x9babad));box(4.45,.09,z,.31,.18,.37,toon(0x81959c));box(4.45,5.77,z,.36,.2,.4,toon(0xb0bab3))}
+// Photo-real position of the glass balustrade along the water's edge.
+const glass=noOutline(new THREE.MeshPhysicalMaterial({color:0xb9d7d7,transparent:true,opacity:.12,roughness:.15,metalness:.05,depthWrite:false,side:THREE.DoubleSide}));
+for(let z=-5.95;z<6;z+=1.2){rod([4.98,.04,z],[4.98,1.08,z],.017,steel);let m=add(new THREE.PlaneGeometry(1.12,.85),glass,4.98,.58,z+.58,site,false);m.rotation.y=Math.PI/2;rod([4.98,1.08,z],[4.98,1.08,Math.min(z+1.2,6.07)],.019,steel)}
+box(5.02,-.23,0,.13,.5,12.32,toon(0xaebbb9));
+// Harbour: lowered water datum, fine ripples, concrete finger wharves and mooring posts.
+box(6.87,-.54,0,3.55,.1,12.32,noOutline(toon(0x76aeb6)),site,false);
+const waterGeo=new THREE.PlaneGeometry(3.5,12.27,18,54);waterGeo.rotateX(-Math.PI/2);const waterBase=waterGeo.attributes.position.array.slice();const waterMat=noOutline(new THREE.MeshToonMaterial({color:0x8ebec1,gradientMap:grad,side:THREE.DoubleSide}));const waterTop=add(waterGeo,waterMat,6.85,-.42,0,site,false);waterTop.receiveShadow=false;
+const waterLines=[];for(let i=0;i<60;i++){let x=5.18+rnd()*3.28,z=-5.95+rnd()*11.8;let m=tube([[x,-.38,z],[x+.08,-.38,z+.02],[Math.min(8.5,x+.18+rnd()*.17),-.38,z]],.007,noOutline(new THREE.MeshBasicMaterial({color:i%4?0xb8d9d4:0xe1eee1,transparent:true,opacity:.56})));waterLines.push({m,phase:rnd()*6})}
+for(let z of [-4.45,3.85]){box(6.85,-.15,z,3.32,.22,.5,toon(0xe5e2cc));box(6.85,-.024,z+.24,3.32,.018,.025,toon(0xb2b9ac));for(let x of [5.45,6.85,8.15]){add(new THREE.CylinderGeometry(.045,.05,.69,10),toon(0x727d80),x,-.1,z+.35);add(new THREE.CylinderGeometry(.055,.055,.04,12),toon(0xd6ded0),x,.25,z+.35)}}
+// Cropped blue-and-white working boat, where such boats appear in the reference.
+const boat=new THREE.Group();boat.position.set(6.9,-.35,-5.35);site.add(boat);
+const hullShape=new THREE.Shape();hullShape.moveTo(-1.22,.22);hullShape.lineTo(1.23,.22);hullShape.lineTo(.9,-.12);hullShape.lineTo(-1.08,-.12);hullShape.closePath();add(new THREE.ExtrudeGeometry(hullShape,{depth:.52,bevelEnabled:false}),toon(0x668da8),0,0,-.26,boat);box(-.25,.42,0,.78,.46,.43,toon(0xf4f2e5),boat);box(-.25,.69,0,.84,.06,.5,toon(0x829aab),boat);box(-.25,.46,.222,.56,.15,.01,toon(0x7897a5),boat);rod([.46,.2,0],[.46,1.47,0],.014,steel,boat);
+
+// Timber dining tables and light metal chairs, all under the actual canopy.
+const tables=[],chairs=[];
+function chair(x,z,angle){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=angle;site.add(g);const frame=toon(0x93acaf),seatMat=toon(0xc2cdbb);box(0,.45,0,.43,.045,.4,seatMat,g);for(let xx of [-.18,.18])for(let zz of [-.16,.16])rod([xx,.05,zz],[xx,.45,zz],.012,frame,g);for(let xx of [-.18,.18])rod([xx,.46,-.17],[xx,.91,-.17],.012,frame,g);box(0,.78,-.17,.39,.19,.028,seatMat,g);chairs.push(g);return g}
+function table(x,z){let g=new THREE.Group();g.position.set(x,0,z);site.add(g);for(let j=0;j<6;j++)box(-.6+j*.24,.76,0,.225,.055,.85,timber,g);for(let a of [-1,1]){rod([a*.52,.73,-.3],[a*.52,.07,-.3],.025,darkSteel,g);rod([a*.52,.73,.3],[a*.52,.07,.3],.025,darkSteel,g)}for(let side of [-1,1])for(let xx of [-.38,.38])chair(x+xx,z+side*.68,side<0?0:Math.PI);
+for(let side of [-1,1]){box(side*.33,.82,.07,.3,.055,.21,toon(0xf8f5e3),g);for(let i=0;i<4;i++){let chip=box(side*.33-.075+i*.045,.858,.07,.027,.023,.13,toon(0xe2bb72),g);chip.rotation.y=i*.35}add(new THREE.CylinderGeometry(.041,.035,.14,14),toon(0xe1e5d8),side*.46,.87,-.18,g);rod([side*.46,.93,-.18],[side*.47,1.05,-.18],.004,toon(0xa3b1a7),g)}tables.push({g,x,z});return g}
+for(const [x,z] of [[-5.6,-4.65],[-3.5,-4.65],[-5.6,-1.7],[-5.6,1.3],[-5.6,4.3],[-3.5,4.3]])table(x,z);
+// Background restaurant fixtures visible against the facade.
+for(let z of [-3.1,2.8]){box(-7.65,.64,z,.72,1.24,.52,toon(0xa5b7b8));box(-7.65,1.27,z,.76,.04,.57,toon(0xc9d7d2));box(-7.268,.98,z,.01,.13,.26,toon(0x647d89))}
+
+// Rounded animation-style figures; articulated knees support a clear seated posture.
+function makePerson(o){let g=new THREE.Group();g.scale.setScalar(o.scale||1);const skin=toonF(P.skin),shirt=toonF(o.shirt),pants=toonF(o.pants||0x698392),hair=toonF(o.hair||0x4b4543),shoes=toonF(0xf7f4e8);let legs=[],knees=[],arms=[],elbows=[],hands=[];
+for(let side of [-1,1]){let hip=new THREE.Group();hip.position.set(side*.11,.79,0);g.add(hip);add(new THREE.CapsuleGeometry(.068,.25,4,8),pants,0,-.19,0,hip);let knee=new THREE.Group();knee.position.y=-.37;hip.add(knee);add(new THREE.CapsuleGeometry(.058,.22,4,8),pants,0,-.17,0,knee);box(0,-.345,.055,.16,.095,.27,shoes,knee);legs.push(hip);knees.push(knee)}
+add(new THREE.CapsuleGeometry(.19,.34,4,12),shirt,0,1.08,0,g);for(let side of [-1,1]){let arm=new THREE.Group();arm.position.set(side*.24,1.31,0);g.add(arm);add(new THREE.CapsuleGeometry(.055,.15,4,8),shirt,0,-.12,0,arm);let elbow=new THREE.Group();elbow.position.y=-.25;arm.add(elbow);add(new THREE.CapsuleGeometry(.045,.15,4,8),skin,0,-.115,0,elbow);let hand=add(new THREE.SphereGeometry(.055,10,8),skin,0,-.24,0,elbow,false);arms.push(arm);elbows.push(elbow);hands.push(hand)}
+let head=new THREE.Group();head.position.y=1.62;g.add(head);let hs=o.headScale||1;add(new THREE.SphereGeometry(.17*hs,22,16),skin,0,0,0,head);let hm=add(new THREE.SphereGeometry(.18*hs,22,14,0,Math.PI*2,0,Math.PI*.57),hair,0,.014,-.008,head);hm.rotation.x=-.32;for(let side of [-1,1]){add(new THREE.SphereGeometry(.023*hs,8,6).scale(.8,1.25,.6),noOutline(toon(P.line)),side*.064*hs,0,.153*hs,head,false);add(new THREE.SphereGeometry(.023*hs,8,6).scale(1.1,.5,.4),noOutline(toon(0xe9b6a2)),side*.097*hs,-.05,.135*hs,head,false)}
+if(o.buns)for(let side of [-1,1])add(new THREE.SphereGeometry(.07*hs,10,8),hair,side*.15*hs,.1,-.03,head);if(o.cap){add(new THREE.SphereGeometry(.19*hs,20,12,0,Math.PI*2,0,Math.PI*.45),toonF(o.cap),0,.03,0,head);box(0,.06,.18*hs,.23*hs,.02,.17*hs,toon(o.cap),head)}return{g,legs,knees,arms,elbows,hands,head,s:o.scale||1}}
+function seated(x,z,angle,shirt){const p=makePerson({shirt,pants:0x65808f});p.g.position.set(x,-.27,z);p.g.rotation.y=angle;site.add(p.g);p.legs.forEach(l=>l.rotation.x=-Math.PI/2);p.knees.forEach(k=>{k.rotation.x=Math.PI/2;k.scale.y=1.3});p.arms.forEach(a=>a.rotation.x=-.65);p.elbows.forEach(e=>e.rotation.x=-.7);p.head.rotation.x=.13;return p}
+const diners=[seated(-5.98,-5.33,0,0x9bb4be),seated(-3.12,-3.97,Math.PI,0xdab29b),seated(-5.22,.62,0,0xb0bba4),seated(-5.98,4.98,Math.PI,0xe1cfad),seated(-3.12,3.62,0,0x8daab5)];
+const watcher=diners[2];watcher.head.rotation.y=.8;
+const kidA=makePerson({shirt:0xe9b76d,pants:0x77999f,hair:0x4a3c38,scale:.74,headScale:1.38,cap:0xe7a07b});const kidB=makePerson({shirt:0x95bac5,pants:0x8292a3,hair:0x514343,scale:.72,headScale:1.38,buns:true});site.add(kidA.g,kidB.g);
+
+// Proposed installation: a 5.2 m projected field laid directly onto existing paving.
+// There are no raised stepping stones, plinths, or physical barriers in the play area.
+const PLAY={x:.25,z:.65,r:2.6};
+const projected=new THREE.Group();projected.name='Proposed projected graphics / flush with existing paving';site.add(projected);
+function groundMaterial(color,opacity=.65){return noOutline(new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}))}
+function ring(x,z,r,color){let m=add(new THREE.TorusGeometry(r,.012,6,80).rotateX(Math.PI/2),groundMaterial(color),x,.036,z,projected,false);m.receiveShadow=false;return m}
+const boundary=ring(PLAY.x,PLAY.z,PLAY.r,0xccd7cc);boundary.material.opacity=.17;
+const footprintTex=canvasTex(128,256,(c)=>{c.clearRect(0,0,128,256);c.fillStyle='#b5d9d1';c.beginPath();c.ellipse(64,141,29,55,-.1,0,Math.PI*2);c.fill();for(let i=0;i<4;i++){c.beginPath();c.ellipse(40+i*16,64-Math.sin(i/3*Math.PI)*8,8,11,0,0,Math.PI*2);c.fill()}});
+const stationXs=[-.48,.95];const stations=[];for(let x of stationXs){let z=.72;let m=ring(x,z,.29,0x9ccccc);for(let sign of [-1,1]){let p=add(new THREE.PlaneGeometry(.15,.28).rotateX(-Math.PI/2),noOutline(new THREE.MeshBasicMaterial({map:footprintTex,transparent:true,opacity:.46,depthWrite:false})),x+sign*.085,.037,z,projected,false);p.rotation.y=sign*.16}stations.push(m)}
+// Gull silhouette is a single crisp blue-violet decal; its wing motion is drawn procedurally.
+function birdPath(c,span){c.moveTo(.04,-.33);c.quadraticCurveTo(.12,-.28,.08,-.1);c.bezierCurveTo(.31,-.34,.58,-.29,span,.1);c.quadraticCurveTo(.58,-.01,.38,.02);c.quadraticCurveTo(.2,.08,.075,.16);c.lineTo(.065,.38);c.lineTo(0,.3);c.lineTo(-.065,.38);c.lineTo(-.075,.16);c.quadraticCurveTo(-.2,.08,-.38,.02);c.quadraticCurveTo(-.58,-.01,-span,.1);c.bezierCurveTo(-.58,-.29,-.31,-.34,-.08,-.1);c.quadraticCurveTo(-.12,-.28,-.04,-.33);c.closePath()}
+const birdCanvas=document.createElement('canvas');birdCanvas.width=512;birdCanvas.height=256;const bc=birdCanvas.getContext('2d');const birdTex=new THREE.CanvasTexture(birdCanvas);birdTex.colorSpace=THREE.SRGBColorSpace;
+function drawGull(t){bc.clearRect(0,0,512,256);bc.save();bc.translate(256,128);bc.scale(218,218);bc.fillStyle='#656186';bc.beginPath();birdPath(bc,.88+.07*Math.sin(t*1.8));bc.fill();bc.restore();birdTex.needsUpdate=true}
+drawGull(0);const shadows=[];for(let i=0;i<4;i++){let m=add(new THREE.PlaneGeometry(i<2?1.4:1.1,i<2?.7:.55).rotateX(-Math.PI/2),noOutline(new THREE.MeshBasicMaterial({map:birdTex,transparent:true,opacity:.75,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1})),0,.041,0,projected,false);m.receiveShadow=false;shadows.push(m)}
+const soloRings=[ring(0,0,.2,0xa5bdcf),ring(0,0,.31,0xa5bdcf)];const groupRings=[ring(.235,.72,.75,0x96d9d6),ring(.235,.72,1.35,0x9cd7cd)];let connection=add(new THREE.PlaneGeometry(1.43,.025).rotateX(-Math.PI/2),groundMaterial(0x96d9d6),.235,.042,.72,projected,false);connection.visible=false;
+// Shared waterline stays projected; no physical water is introduced to the promenade.
+const tideShape=new THREE.Shape();tideShape.moveTo(-1.8,0);for(let i=0;i<=40;i++){let x=-1.8+i*.09;tideShape.lineTo(x,.07+Math.sin(i*.42)*.045)}tideShape.lineTo(1.8,-.13);tideShape.lineTo(-1.8,-.13);tideShape.closePath();const tideLine=add(new THREE.ShapeGeometry(tideShape).rotateX(-Math.PI/2),groundMaterial(0xa7d9d5,.4),.25,.043,1.95,projected,false);tideLine.visible=false;
+// Projector and tracking sensor are attached to the existing structure, not new poles.
+const projectors=[];for(const [x,z] of [[2.1,-2.4],[2.1,3.7]]){rod([x,6.02,z],[x,3.85,z],.012,steel);let g=new THREE.Group();g.position.set(x,3.78,z);g.lookAt(PLAY.x,0,PLAY.z);site.add(g);box(0,0,0,.22,.14,.29,toon(0xd9e3dc),g,false);let lens=add(new THREE.CylinderGeometry(.043,.043,.05,20).rotateX(Math.PI/2),toon(0x3b5c72),0,0,.16,g,false);add(new THREE.CircleGeometry(.03,20),noOutline(new THREE.MeshBasicMaterial({color:0x99d6dd})),0,0,.19,g,false);box(.17,0,-.03,.07,.06,.09,toon(0x718c93),g,false);projectors.push(g)}
+
+// Real gulls remain on the far balustrade, spatially distinct from projected silhouettes.
+function makeGull(){let g=new THREE.Group();let w=toonF(0xf8faef),gray=toon(0xb7c3c8),beak=toon(0xd5ae6e);add(new THREE.SphereGeometry(.12,18,12).scale(1,1,1.8),w,0,.2,0,g);let h=new THREE.Group();h.position.set(0,.36,.14);g.add(h);add(new THREE.SphereGeometry(.09,16,12),w,0,0,0,h);let b=add(new THREE.ConeGeometry(.024,.12,8),beak,0,-.006,.13,h);b.rotation.x=Math.PI/2;for(let side of [-1,1]){add(new THREE.SphereGeometry(.013,8,6),noOutline(toon(0x354b5b)),side*.063,.017,.05,h,false);add(new THREE.SphereGeometry(.09,14,10).scale(.5,.6,1.9),gray,side*.09,.22,-.05,g);rod([side*.04,.13,0],[side*.04,0,0],.009,toon(0xd4a777),g)}return{g,h}}
+const perched=[];for(const [z,a] of [[-4.9,.5],[4.4,-1.5],[5.2,2.1]]){let b=makeGull();b.g.position.set(4.98,1.095,z);b.g.rotation.y=a;site.add(b.g);perched.push(b)}
+// Simple wind tell-tale on the existing boat mast, not a decorative row of invented flags.
+const pennantGeo=new THREE.PlaneGeometry(.38,.18,12,3);pennantGeo.translate(.19,0,0);const pennant=add(pennantGeo,noOutline(toon(0xd6ae70,{side:THREE.DoubleSide})),.47,1.38,0,boat,false);const pennantBase=pennantGeo.attributes.position.array.slice();
+// Discreet contact shadows hold figures and chairs onto the pale paving.
+contact(.25,.65,5.4,5.1,.026,site,.035);for(const [x,z] of [[-5.6,-4.65],[-3.5,-4.65],[-5.6,-1.7],[-5.6,1.3],[-5.6,4.3],[-3.5,4.3]])contact(x,z,1.7,1.8,.026,site,.11);
+const stage=add(new THREE.PlaneGeometry(100,100).rotateX(-Math.PI/2),noOutline(new THREE.ShadowMaterial({opacity:.1})),0,-.748,0,scene,false);
+
+// A deterministic 18-second demonstration: individual steps -> approach -> paired response.
+const HOME_A=new THREE.Vector3(-.85,0,1.12),HOME_B=new THREE.Vector3(1.43,0,-.2);
+const PAD_A=new THREE.Vector3(stationXs[0],0,.72),PAD_B=new THREE.Vector3(stationXs[1],0,.72);
+const HOME2_A=new THREE.Vector3(-.85,0,1.12),HOME2_B=new THREE.Vector3(1.43,0,-.2);
+const smooth01=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
+function cyclePose(t){let p=t%18;let A=HOME_A.clone(),B=HOME_B.clone(),gaitA=0,gaitB=0,faceA=.4,faceB=-.6;let paired=false;
+ if(p<7){let a=p*.55;A.set(-.65+Math.sin(a)*.5,0,.8+Math.cos(a)*.7);B.set(1.15+Math.cos(a+.6)*.42,0,.05+Math.sin(a+.6)*.58);gaitA=p*4.5;gaitB=p*4.4+1;faceA=Math.atan2(Math.cos(a)*.5,-Math.sin(a)*.7);faceB=Math.atan2(-Math.sin(a+.6)*.42,Math.cos(a+.6)*.58)}
+ else if(p<10){let u=smooth01((p-7)/3),a=7*.55;let startA=new THREE.Vector3(-.65+Math.sin(a)*.5,0,.8+Math.cos(a)*.7),startB=new THREE.Vector3(1.15+Math.cos(a+.6)*.42,0,.05+Math.sin(a+.6)*.58);A.lerpVectors(startA,PAD_A,u);B.lerpVectors(startB,PAD_B,u);gaitA=p*4.2*(1-u);gaitB=p*4.2*(1-u);faceA=.5+(Math.PI/2-.5)*u;faceB=-.5+(-Math.PI/2+.5)*u}
+ else if(p<14){A.copy(PAD_A);B.copy(PAD_B);faceA=Math.PI/2;faceB=-Math.PI/2;paired=p>10.25}
+ else{let u=smooth01((p-14)/4),a=(p-18)*.55;let endA=new THREE.Vector3(-.65+Math.sin(a)*.5,0,.8+Math.cos(a)*.7),endB=new THREE.Vector3(1.15+Math.cos(a+.6)*.42,0,.05+Math.sin(a+.6)*.58);A.lerpVectors(PAD_A,endA,u);B.lerpVectors(PAD_B,endB,u);gaitA=p*4.2;gaitB=p*4.2+1;faceA=Math.PI/2;faceB=-Math.PI/2+u*(Math.PI/2-.46)}
+ return{p,A,B,gaitA,gaitB,faceA,faceB,paired}}
+function setKid(k,pos,gait,face,still){k.g.position.copy(pos);k.g.position.y=.014;k.g.rotation.y=face;let f=still?0:Math.sin(gait)*.32;k.legs[0].rotation.x=f;k.legs[1].rotation.x=-f;k.knees[0].rotation.x=Math.max(0,-f)*.9;k.knees[1].rotation.x=Math.max(0,f)*.9;k.arms.forEach((a,i)=>{a.rotation.x=(i?-f:f)*.8;a.rotation.z=(i?1:-1)*.14});k.elbows.forEach(e=>e.rotation.x=-.2);k.head.rotation.x=.22}
+let lastFrame=-1;const footprintA=new THREE.Vector3();const clock=new THREE.Clock();
+function update(t){const state=cyclePose(t),{p,A,B,gaitA,gaitB,faceA,faceB,paired}=state;const still=p>=10&&p<14;setKid(kidA,A,gaitA,faceA,still);setKid(kidB,B,gaitB,faceB,still);
+ // Solo target glides ahead of the child's step; it waits during each landing response.
+ const stride=(Math.sin(gaitA)+1)/2;const targetOffset=p<7?.045+.18*Math.abs(Math.sin(gaitA)):.23;shadows[0].position.set(A.x+Math.sin(faceA)*targetOffset,.041,A.z+Math.cos(faceA)*targetOffset);shadows[0].rotation.y=faceA;shadows[1].position.set(B.x+Math.sin(faceB)*(.045+.18*Math.abs(Math.sin(gaitB))),.042,B.z+Math.cos(faceB)*(.045+.18*Math.abs(Math.sin(gaitB))));shadows[1].rotation.y=faceB;
+ for(let i=2;i<4;i++){const a=t*.19+i*Math.PI;shadows[i].position.set(.25+Math.cos(a)*1.55,.041,.65+Math.sin(a)*1.5);shadows[i].rotation.y=-a+.6}
+ shadows.forEach((m,i)=>m.material.opacity=paired?(i<2?.44:.3):(i<2?.78:.52));
+ if(p<7){let landing=Math.max(0,1-Math.abs(Math.sin(gaitA))*3);soloRings.forEach((r,i)=>{r.visible=true;r.position.set(shadows[0].position.x,.045,shadows[0].position.z);r.scale.setScalar(.7+(1-landing)*.7+i*.1);r.material.opacity=landing*.62})}else soloRings.forEach(r=>r.visible=false);
+ stations.forEach((r,i)=>{r.material.opacity=p<7?.13:p<10?.3+.15*Math.sin(t*2+i):p<14?.8:.18});
+ connection.visible=paired;tideLine.visible=paired;let progress=paired?smooth01((p-10.25)/1.8):0;groupRings.forEach((r,i)=>{r.visible=paired;r.scale.setScalar(.75+progress*.55+Math.sin(t*1.4+i)*.025);r.material.opacity=(.4-i*.1)*progress});connection.scale.x=.1+.9*progress;tideLine.position.z=2.1-progress*.52;tideLine.material.opacity=progress*.45;
+ // Coordinated response: both local targets bank in the same direction, without scattering.
+ if(paired){let a=(p-10.25)*.3;shadows[0].rotation.y=a;shadows[1].rotation.y=a;shadows[0].position.x=PAD_A.x+.12*Math.sin(a);shadows[1].position.x=PAD_B.x+.12*Math.sin(a)}
+ const frame=Math.floor(t*12);if(frame!==lastFrame){drawGull(t);lastFrame=frame}
+ const wa=waterGeo.attributes.position.array;for(let i=0;i<wa.length;i+=3)wa[i+1]=waterBase[i+1]+Math.sin(waterBase[i]*1.8+t*.9)*.014+Math.sin(waterBase[i+2]*2.8+t*1.1)*.01;waterGeo.attributes.position.needsUpdate=true;waterGeo.computeVertexNormals();waterLines.forEach(({m,phase})=>{m.position.y=Math.sin(t*.8+phase)*.008;m.position.z=Math.sin(t*.5+phase)*.02});boat.position.y=-.35+Math.sin(t*.8)*.015;boat.rotation.x=Math.sin(t*.65)*.012;
+ const pa=pennantGeo.attributes.position.array;for(let i=0;i<pa.length;i+=3)pa[i+2]=pennantBase[i+2]+Math.sin(pennantBase[i]*18-t*2.6)*.025*(pennantBase[i]/.38);pennantGeo.attributes.position.needsUpdate=true;
+ perched.forEach((b,i)=>{b.h.rotation.y=Math.sin(t*.3+i)*.12});diners.forEach((d,i)=>{d.head.rotation.x=.12+Math.sin(t*.6+i)*.035;d.arms[0].rotation.x=-.65+Math.sin(t*.55+i)*.08});watcher.head.rotation.y=.8+Math.sin(t*.3)*.12;
+ // Full roof at eye-level, upper cutaway at elevated model-viewing angles.
+ roofStructure.visible=camera.position.y<7.25;roofPanels.visible=camera.position.y<6.25;
+ return state;
+}
+update(0);function animate(){requestAnimationFrame(animate);update(clock.getElapsedTime());controls.update();effect.render(scene,camera)}animate();
+let previousAspect=camera.aspect;addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);effect.setSize(innerWidth,innerHeight);if((previousAspect>=1&&camera.aspect<1)||(previousAspect<1&&camera.aspect>=1))reset();previousAspect=camera.aspect});
+window.__gullRealSite={scene,site,camera,renderer,controls,update,reset,shadows,projected,kidA,kidB,roofStructure,roofPanels,perched,metadata:{surveyVerified:false,source:'BVN / covered waterfront dining promenade',units:'estimated metres',proposed:['overhead projectors','flush gull projections','solo and paired feedback'],raisedPlayElements:false,revision:'2026-10-25',footfallFeedback:'aligned to projected target at foot landing'}};
+</script></body></html>

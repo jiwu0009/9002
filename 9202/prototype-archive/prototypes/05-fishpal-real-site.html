@@ -1,0 +1,442 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FishPal — New Sydney Fish Market / Photo-Based Corner</title><style>html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#e8eef0}canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {OutlineEffect} from 'three/addons/effects/OutlineEffect.js';
+/* PHOTO-BASED RECONSTRUCTION, NOT A MEASURED SURVEY.
+Main source: BVN / New Sydney Fish Market, reflective ceiling and live-tank retail corner.
+https://www.bvn.com.au/project/new-sydney-fish-market/
+https://cdn.sanity.io/images/o5vscjl2/production/9fa16a88029cbd114d3e49e231004c14637a5dc6-6571x9200.jpg
+Scene units are nominal metres. Cabinet heights, clearances and unseen depth are estimates.
+Existing fabric: white square tiled counters, tank/cold-case corner arrangement,
+rippled metallic soffit, tiled column, overhead rectangular light frames, globe pendants.
+Proposed intervention: FishPal, portable NFC fish signs, invitation and collection shelf.
+Ceiling is front-sided downward: an architectural cutaway when viewed from above.
+The enlarged rotating device is a product study, deliberately outside the site plinth.
+*/
+const P={bg:'#E8EEF0',white:0xF5FBF8,mint:0xC8ECE5,ice:0xC1E4EF,iceMid:0x8BBBD1,deep:0x4A738C,line:0x365264,orange:0xF2A56D,red:0xDA7E83,silver:0xB5CBD4,ring:0x8EEEFF,lcd:'#B8D9CB',skin:0xF6D9C4};
+const OUT=[.19,.29,.34];
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.13;document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(P.bg);
+const site=new THREE.Group();site.name='Real-site corner / estimated metric scale';scene.add(site);
+const camera=new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,100);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.065;controls.minDistance=4.5;controls.maxDistance=45;controls.maxPolarAngle=Math.PI*.49;controls.minPolarAngle=.12;controls.target.set(1.5,.9,0);
+function reset(){const k=Math.max(1,1.08/camera.aspect);camera.position.set(13*k,10*k,18*k);controls.target.set(1.5,1.1,0);controls.update()}
+reset();renderer.domElement.addEventListener('dblclick',reset);renderer.domElement.style.cursor='grab';controls.addEventListener('start',()=>renderer.domElement.style.cursor='grabbing');controls.addEventListener('end',()=>renderer.domElement.style.cursor='grab');
+const effect=new OutlineEffect(renderer,{defaultThickness:.0015,defaultColor:OUT,defaultAlpha:.72});
+scene.add(new THREE.HemisphereLight(0xf3faff,0x9badb7,1.25));const key=new THREE.DirectionalLight(0xfff4e7,2.3);key.position.set(-6,12,8);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-10,right:13,top:10,bottom:-9,near:1,far:40});key.shadow.normalBias=.025;key.shadow.bias=-.0002;scene.add(key);const fill=new THREE.DirectionalLight(0xbfe7fc,.75);fill.position.set(6,5,-6);scene.add(fill);
+/* ================= 材质与工具 ================= */
+// 四阶明暗：亮面 / 中间色 / 阴影面 / 接触暗部
+const grad = new THREE.DataTexture(new Uint8Array([95, 95, 95, 255, 150, 150, 150, 255, 205, 205, 205, 255, 255, 255, 255, 255]), 4, 1, THREE.RGBAFormat);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+// 背景结构：细、轻的深灰蓝线
+const toon = (c, o = {}) => { const m = new THREE.MeshToonMaterial({ color: c, gradientMap: grad, ...o }); m.userData.outlineParameters = { thickness: 0.0011, color: OUT, alpha: 0.55 }; return m; };
+// 主体（FishPal、人物、鱼、海鲜、立牌）：更清楚的外轮廓
+const toonF = (c, o = {}) => { const m = toon(c, o); m.userData.outlineParameters = { thickness: 0.0025, color: OUT, alpha: 0.9 }; return m; };
+const noOutline = (m) => { m.userData.outlineParameters = { visible: false }; return m; };
+function add(geo, mat, x = 0, y = 0, z = 0, parent = scene, shadow = true) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z);
+  m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
+}
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry(9202);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  return t;
+}
+const softTex = canvasTex(64, 64, (x) => {
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+});
+// 接触阴影：让物体“站得住”
+const contactMat = noOutline(new THREE.MeshBasicMaterial({ map: softTex, color: P.line, transparent: true, opacity: 0.32, depthWrite: false }));
+function contact(x, z, sx, sz, y = 0.012, parent = scene, op) {
+  const m = add(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), op ? noOutline(contactMat.clone()) : contactMat, x, y, z, parent, false);
+  if (op) m.material.opacity = op;
+  m.scale.set(sx, 1, sz); m.renderOrder = 1; return m;
+}
+
+function makeFish(sp, size) {
+  const g = new THREE.Group();
+  add(new THREE.SphereGeometry(0.5, 20, 14).scale(1, 0.6, 0.36), toonF(sp.body), 0, 0, 0, g);
+  add(new THREE.SphereGeometry(0.42, 16, 10).scale(0.92, 0.36, 0.34), noOutline(toon(sp.belly)), 0.03, -0.12, 0, g, false);
+  const tail = new THREE.Group(); tail.position.x = -0.44; g.add(tail);
+  // 分叉尾鳍
+  const ts = new THREE.Shape(); ts.moveTo(0, 0); ts.lineTo(-0.3, 0.22); ts.quadraticCurveTo(-0.22, 0, -0.3, -0.22); ts.closePath();
+  add(new THREE.ExtrudeGeometry(ts, { depth: 0.03, bevelEnabled: false }).translate(0, 0, -0.015), toonF(sp.fin), 0, 0, 0, tail);
+  const ds = new THREE.Shape(); ds.moveTo(-0.22, 0); ds.quadraticCurveTo(-0.02, 0.2, 0.18, 0); ds.closePath();
+  add(new THREE.ExtrudeGeometry(ds, { depth: 0.02, bevelEnabled: false }).translate(0, 0, -0.01), toonF(sp.fin), -0.02, 0.27, 0, g);
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.06, 10, 8), noOutline(toon(0xffffff)), 0.3, 0.06, 0.15 * s, g, false);
+    add(new THREE.SphereGeometry(0.035, 8, 6), noOutline(toon(P.line)), 0.33, 0.06, 0.175 * s, g, false);
+  }
+  g.scale.setScalar(size);
+  return { g, tail };
+}
+
+// Shared geometry / restrained scene structure.
+const cubeGeo=new THREE.BoxGeometry(1,1,1);const metal=noOutline(new THREE.MeshStandardMaterial({color:0xb9c9ce,metalness:.55,roughness:.3}));
+const lightMetal=toon(0xd6e0e3),darkMetal=toon(0x607985);
+function box(x,y,z,w,h,d,mat,parent=site,shadow=true){const m=add(cubeGeo,mat,x,y,z,parent,shadow);m.scale.set(w,h,d);return m}
+function rod(a,b,r,mat,parent=site){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);const m=add(new THREE.CylinderGeometry(r,r,d.length(),10),mat,0,0,0,parent,false);m.position.copy(A.add(B).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return m}
+function tube(pts,r,mat,parent=site){return add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))),24,r,8,false),mat,0,0,0,parent,false)}
+function badge(text,w,h,fg='#486371',bg='#f4f8ee'){const t=canvasTex(384,192,(c,W,H)=>{c.fillStyle=bg;c.fillRect(0,0,W,H);c.fillStyle=fg;c.font='bold 76px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(text,W/2,H/2)});return noOutline(new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide}))}
+// One rectangular architectural slice, 11.6 x 8.7 nominal metres.
+box(0,-.23,0,11.8,.46,8.9,toon(0xa6bec9));box(0,-.015,0,11.65,.035,8.75,toon(0xd9e3e5));
+const floorTex=canvasTex(768,768,(c,W,H)=>{c.fillStyle='#dce2df';c.fillRect(0,0,W,H);for(let i=0;i<11000;i++){let a=rnd()*W,b=rnd()*H;c.fillStyle=i%3?'rgba(92,117,126,.045)':'rgba(255,255,255,.2)';c.fillRect(a,b,1.5,1.5)}c.strokeStyle='#bdcacb';c.lineWidth=1.3;for(let i=0;i<=W;i+=192){c.beginPath();c.moveTo(i,0);c.lineTo(i,H);c.stroke();c.beginPath();c.moveTo(0,i);c.lineTo(W,i);c.stroke()}},[3.6,2.7]);
+const floorMat=noOutline(new THREE.MeshStandardMaterial({color:0xf1f5ee,map:floorTex,roughness:.44,metalness:.04}));add(new THREE.PlaneGeometry(11.65,8.75).rotateX(-Math.PI/2),floorMat,0,.008,0,site,false);
+// White 100 mm square tile units: shared textures use per-face world-size repeat.
+const whiteTileBase=canvasTex(256,256,(c,W,H)=>{c.fillStyle='#eff2e9';c.fillRect(0,0,W,H);c.strokeStyle='#c1cbc7';c.lineWidth=3;c.strokeRect(0,0,W,H);c.fillStyle='rgba(255,255,255,.65)';c.fillRect(8,8,225,5)});
+const tileCache=new Map();function tiled(w,h){const k=w+','+h;if(!tileCache.has(k)){let t=whiteTileBase.clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(w/.13,h/.13);t.needsUpdate=true;tileCache.set(k,noOutline(new THREE.MeshToonMaterial({color:0xffffff,map:t,gradientMap:grad})))}return tileCache.get(k)}
+function tiledBlock(x,y,z,w,h,d){return box(x,y,z,w,h,d,[tiled(d,h),tiled(d,h),tiled(w,d),tiled(w,d),tiled(w,h),tiled(w,h)])}
+function cabinet(x,z,w,d,height=1.02){tiledBlock(x,height/2,z,w,height,d);box(x,.055,z,w+.015,.11,d+.015,darkMetal);box(x,height+.025,z,w+.1,.055,d+.1,metal);contact(x,z,w+.35,d+.3);}
+// Photo: foreground refrigerated case at left, live-tank island on the right,
+// with an open aisle between them. There is no invented blue wall behind the tanks.
+const glass=noOutline(new THREE.MeshPhysicalMaterial({color:0xcce5e8,transparent:true,opacity:.105,roughness:.08,metalness:.06,depthWrite:false,side:THREE.DoubleSide}));
+const water=noOutline(new THREE.MeshBasicMaterial({color:0x84bfc9,transparent:true,opacity:.13,depthWrite:false,side:THREE.DoubleSide}));
+const tanks=[],swimmers=[],bubbles=[];
+const SPECIES=[{body:P.orange,belly:0xf7dcc5,fin:0xd98455},{body:P.red,belly:0xf3d2d0,fin:0xc66e78},{body:P.silver,belly:0xe5eeee,fin:0x88a6b6}];
+// Tank base is continuous, as in the reference; partitions are thin glass.
+cabinet(1.4,-1.45,6.05,1.38,.94);
+for(const [i,cx] of [-.55,1.4,3.35].entries()){
+ const cz=-1.45,W=1.95,D=1.28,y0=1.0,H=.74,WL=.64;
+ box(cx,1.006,cz,W-.05,.022,D-.04,toon(0xc8d6cc));
+ add(new THREE.PlaneGeometry(W-.03,H),glass,cx,1.01+H/2,cz+D/2,site,false).renderOrder=4;
+ add(new THREE.PlaneGeometry(W-.03,H),glass,cx,1.01+H/2,cz-D/2,site,false).renderOrder=4;
+ for(let sign of [-1,1]){let side=add(new THREE.PlaneGeometry(D,H),glass,cx+sign*W/2,1.01+H/2,cz,site,false);side.rotation.y=Math.PI/2;side.renderOrder=4}
+ for(let zz of [cz-D/2,cz+D/2]){box(cx,1.02,zz,W,.025,.027,darkMetal);box(cx,1.76,zz,W,.022,.022,lightMetal)}
+ for(let xx of [cx-W/2,cx+W/2])for(let zz of [cz-D/2,cz+D/2])box(xx,1.39,zz,.017,H,.017,lightMetal);
+ add(new THREE.BoxGeometry(W-.04,WL,D-.04),water,cx,1.02+WL/2,cz,site,false).renderOrder=3;
+ const surf=add(new THREE.PlaneGeometry(W-.04,D-.04).rotateX(-Math.PI/2),noOutline(new THREE.MeshBasicMaterial({color:0xdaffff,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false})),cx,1.02+WL,cz,site,false);
+ box(cx,1.02+WL,cz+D/2-.018,W-.03,.009,.006,noOutline(new THREE.MeshBasicMaterial({color:0xe9ffff,transparent:true,opacity:.65})),site,false);
+ const tank={cx,cz,W,D,fish:[],surface:surf};tanks.push(tank);
+ for(let j=0;j<4;j++){let f=makeFish(SPECIES[i],.27+j*.018);site.add(f.g);f.cx=cx;f.cz=cz;f.baseY=1.18+j*.11;f.phase=j*1.7+i;f.speed=.24+j*.035;swimmers.push(f);tank.fish.push(f)}
+ for(let j=0;j<7;j++){let b=add(new THREE.SphereGeometry(.009+rnd()*.009,8,6),noOutline(new THREE.MeshBasicMaterial({color:0xedffff,transparent:true,opacity:.65,depthWrite:false})),cx+.65,1.2,cz-.25,site,false);bubbles.push({b,x:b.position.x+(rnd()-.5)*.08,z:b.position.z+(rnd()-.5)*.09,phase:rnd(),speed:.15+rnd()*.1})}
+ tube([[cx+.67,1.1,cz-.24],[cx+.67,1.7,cz-.24],[cx+.67,1.81,cz-.44],[cx+.4,1.82,cz-.7]],.012,lightMetal);
+ let glare=add(new THREE.PlaneGeometry(.025,.48),noOutline(new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.25,depthWrite:false})),cx-.72,1.4,cz+D/2+.007,site,false);glare.rotation.z=-.22;
+}
+// Foreground case is long and perpendicular to the tank counter.
+const CASE={x:-3.3,z:.05,w:2.4,d:5.6,h:.94};cabinet(CASE.x,CASE.z,CASE.w,CASE.d,CASE.h);
+const iceTop=1.075;
+box(CASE.x,1.015,CASE.z,2.28,.12,5.43,toon(0xbccfd5));
+for(let side of [-1,1]){box(CASE.x+side*1.17,1.1,CASE.z,.035,.18,5.5,metal);box(CASE.x,1.1,CASE.z+side*2.73,2.38,.18,.035,metal)}
+// Angled front glass and overhanging clear top: real cold-case construction.
+let front=add(new THREE.PlaneGeometry(5.48,.61),glass,-2.04,1.36,.05,site,false);front.rotation.set(0,Math.PI/2,0);front.rotation.z=-.16;
+let cover=add(new THREE.PlaneGeometry(2.48,5.48),glass,-3.27,1.65,.05,site,false);cover.rotation.x=-Math.PI/2;cover.rotation.z=-.09;cover.renderOrder=5;
+for(let zz of [-2.69,.05,2.79]){rod([-2.11,1.02,zz],[-1.99,1.65,zz],.014,lightMetal);rod([-4.49,1.02,zz],[-4.49,1.78,zz],.014,lightMetal);rod([-4.49,1.78,zz],[-1.99,1.65,zz],.014,lightMetal)}
+rod([-1.99,1.65,-2.69],[-1.99,1.65,2.79],.018,metal);rod([-4.49,1.78,-2.69],[-4.49,1.78,2.79],.018,metal);
+// Blue seafood trays follow the same counter rather than a separate imagined island.
+for(let j=0;j<5;j++)box(-3.3,1.08,-2.14+j*1.08,2.15,.085,.98,toon(0x6f9fae));
+const ice=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1),noOutline(toon(0xffffff)),550);const dummy=new THREE.Object3D();for(let i=0;i<550;i++){let r=.026+rnd()*.038;dummy.position.set(-4.29+rnd()*1.97,1.14+rnd()*.02,-2.61+rnd()*5.33);dummy.scale.set(r*1.3,r*.8,r);dummy.rotation.set(rnd()*3,rnd()*3,rnd()*3);dummy.updateMatrix();ice.setMatrixAt(i,dummy.matrix);ice.setColorAt(i,new THREE.Color(i%4?0xf2f8ef:0xc7e2e8))}ice.castShadow=true;ice.receiveShadow=true;site.add(ice);
+// Real tile column from the source photograph, kept behind the customer route.
+tiledBlock(-1.9,1.78,-3.03,.6,3.56,.6);box(-1.9,.1,-3.03,.62,.2,.62,lightMetal);
+// Secondary counters and sightlines of the open market, not a solid scenic back wall.
+for(let i=0;i<3;i++){let x=-3.5+i*3.25;cabinet(x,-3.83,2.95,.68,.93);box(x,1.04,-3.83,2.8,.1,.53,toon(0xe4eded));let g=add(new THREE.PlaneGeometry(2.9,.35),glass,x,1.23,-3.47,site,false);for(let a=0;a<6;a++){let f=makeFish(SPECIES[(a+i)%3],.16);f.g.position.set(x-1.12+a*.43,1.13,-3.75);f.g.rotation.x=Math.PI/2;site.add(f.g)}}
+// Recessed under-counter storage is background equipment, kept to the rear.
+for(let x of [2.4,3.7,4.9])box(x,.32,-4.17,.88,.52,.4,toon(0xb4c5cc));
+// Long narrow drains match the customer-side edge of the case.
+const grateTex=canvasTex(256,32,(c,W,H)=>{c.fillStyle='#708891';c.fillRect(0,0,W,H);c.fillStyle='#c7d5d6';for(let x=0;x<W;x+=8)c.fillRect(x,4,4,24)},[12,1]);let grate=add(new THREE.PlaneGeometry(6.4,.12).rotateX(-Math.PI/2),noOutline(new THREE.MeshBasicMaterial({map:grateTex})),-1.62,.014,.0,site,false);grate.rotation.y=Math.PI/2;
+for(const [x,z,sx,sz] of [[-.6,.7,1.5,.3],[2.6,2.0,.9,.23],[-1.4,2.45,.8,.28]]){let p=add(new THREE.PlaneGeometry(sx,sz).rotateX(-Math.PI/2),noOutline(new THREE.MeshBasicMaterial({map:softTex,color:0xeafaff,transparent:true,opacity:.25,depthWrite:false})),x,.016,z,site,false)}
+
+// Proposed installation: independent signs sit in front of tanks at child chest height.
+function fishShape(w,h){const sh=new THREE.Shape();sh.moveTo(w*.5,0);sh.bezierCurveTo(w*.35,h*.55,-w*.05,h*.6,-w*.25,h*.18);sh.lineTo(-w*.53,h*.43);sh.quadraticCurveTo(-w*.43,0,-w*.53,-h*.43);sh.lineTo(-w*.25,-h*.18);sh.bezierCurveTo(-w*.05,-h*.6,w*.35,-h*.55,w*.5,0);return sh}
+const icon=canvasTex(256,256,(c)=>{c.clearRect(0,0,256,256);c.lineWidth=10;c.lineCap='round';c.lineJoin='round';c.fillStyle='#daeef0';c.strokeStyle='#466a7b';c.beginPath();c.roundRect(52,95,78,106,18);c.fill();c.stroke();c.strokeRect(70,112,41,33);c.beginPath();c.moveTo(42,210);c.quadraticCurveTo(36,170,60,164);c.lineTo(93,188);c.lineTo(127,156);c.quadraticCurveTo(143,149,146,165);c.lineTo(127,207);c.stroke();c.strokeStyle='#75adc0';for(let r of [24,45,66]){c.beginPath();c.arc(143,101,r,-1.1,.15);c.stroke()}});
+const standees=[];
+for(const [i,x] of [-.55,1.4,3.35].entries()){
+ let g=new THREE.Group();g.name='Proposed NFC stand '+i;g.position.set(x,0,-.22);site.add(g);
+ add(new THREE.CylinderGeometry(.2,.23,.055,32),metal,0,.035,0,g);rod([0,.07,0],[0,.84,0],.022,lightMetal,g);
+ add(new THREE.ExtrudeGeometry(fishShape(.84,.47),{depth:.028,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:2}),toonF(0xe2f0ec),0,.95,0,g);
+ add(new THREE.ExtrudeGeometry(fishShape(.76,.4),{depth:.02,bevelEnabled:false}),toonF([0xbadce4,0xb9dedd,0xbcd0da][i]),0,.95,.035,g);
+ add(new THREE.SphereGeometry(.018,8,6),noOutline(toon(P.deep)),.28,1.01,.06,g,false);
+ add(new THREE.CylinderGeometry(.145,.145,.028,36).rotateX(Math.PI/2),toonF(P.white),-.03,.95,.07,g);
+ add(new THREE.PlaneGeometry(.25,.25),noOutline(new THREE.MeshBasicMaterial({map:icon,transparent:true,depthWrite:false})),-.03,.95,.087,g,false);
+ const ringMat=noOutline(new THREE.MeshBasicMaterial({color:P.ring,transparent:true,opacity:.9}));add(new THREE.TorusGeometry(.16,.013,8,48),ringMat,-.03,.95,.09,g,false);
+ const haloMat=noOutline(new THREE.MeshBasicMaterial({color:0x9cefff,map:softTex,transparent:true,opacity:.18,depthWrite:false,blending:THREE.AdditiveBlending}));add(new THREE.PlaneGeometry(.43,.43),haloMat,-.03,.95,.084,g,false);
+ standees.push({g,ringMat,haloMat,disc:new THREE.Vector3(x-.03,.95,-.13),flash:0});
+}
+function makeScreen() {
+  const c = document.createElement('canvas'); c.width = 40; c.height = 30;
+  const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+  const x = c.getContext('2d');
+  const fishPix = ['...oo..', 'o.oooo.', 'ooooeoo', 'o.oooo.', '...oo..'];
+  const s = { tex, flash: 0, partner: 0, last: -1 };
+  const drawFish = (ox, oy, k) => fishPix.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === '.') return; x.fillStyle = ch === 'e' ? '#365264' : '#E5884B'; x.fillRect(ox + i * k, oy + j * k, k, k); }));
+  s.draw = (t) => {
+    const f = Math.floor(t * 5); const key = f * 4 + s.flash * 2 + s.partner; if (key === s.last) return; s.last = key;
+    x.fillStyle = s.flash ? '#D3EDE1' : P.lcd; x.fillRect(0, 0, 40, 30);
+    x.fillStyle = 'rgba(54,82,100,0.08)'; for (let r = 0; r < 30; r += 2) x.fillRect(0, r, 40, 1);   // LCD 扫描纹
+    if (s.flash) {
+      x.fillStyle = '#4A738C';
+      for (const [px, py] of [[4, 4], [33, 5], [5, 23], [33, 23]]) { x.fillRect(px, py - 1, 1, 3); x.fillRect(px - 1, py, 3, 1); }
+      drawFish(10, 8, 3);
+      if (s.partner) { x.fillStyle = '#DA7E83'; x.fillRect(31, 12, 2, 2); x.fillRect(34, 12, 2, 2); x.fillRect(31, 14, 5, 2); x.fillRect(32, 16, 3, 1); }
+    } else {
+      x.fillStyle = '#4A738C'; x.fillRect(0, 26, 40, 1);
+      for (const px of [5, 7, 31, 34]) x.fillRect(px, 21 + ((f + px) % 2), 1, 5);
+      drawFish(((f % 48) - 8), 11 + ((f >> 2) % 2), 1);
+      x.fillStyle = '#4A738C'; x.fillRect(20, 24 - (f % 22), 1, 1); x.fillRect(13, 24 - ((f + 9) % 22), 1, 1);
+      for (let k = 0; k < 3; k++) x.fillRect(2 + k * 3, 2, 2, 2);
+    }
+    tex.needsUpdate = true;
+  };
+  return s;
+}
+const groupLabelTex = canvasTex(128, 40, (x, w, h) => { x.font = 'bold 26px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#365264'; x.fillText('GROUP', w / 2, h / 2 + 1); });
+function taperTube(curve, seg, r0, r1, radial = 12) {
+  const geo = new THREE.TubeGeometry(curve, seg, r0, radial);
+  const p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg, c = curve.getPointAt(t), k = 1 - (1 - r1 / r0) * t;
+    for (let j = 0; j <= radial; j++) { const idx = i * (radial + 1) + j; v.fromBufferAttribute(p, idx).sub(c).multiplyScalar(k).add(c); p.setXYZ(idx, v.x, v.y, v.z); }
+  }
+  geo.computeVertexNormals(); return geo;
+}
+function makeFishPal(screen) {
+  const g = new THREE.Group();
+  const white = toonF(P.white), cap = toonF(P.ice), fin = toonF(P.iceMid), mint = toonF(P.mint), orange = toonF(P.orange), deep = toonF(P.deep);
+  const body = new THREE.Group(); g.add(body);
+  add(new THREE.SphereGeometry(0.42, 40, 28).scale(1, 1.22, 0.86), white, 0, 0.96, 0, body);
+  add(new THREE.SphereGeometry(0.426, 40, 14, 0, Math.PI * 2, 0, Math.PI * 0.3).scale(1, 1.22, 0.87), cap, 0, 0.962, 0, body, false);
+  // 头顶两片鳍，侧面也能读出头足类
+  for (const s of [-1, 1]) { const f = add(new THREE.SphereGeometry(0.2, 18, 10).scale(1, 0.5, 0.2), fin, s * 0.35, 1.33, -0.03, body); f.rotation.z = s * 0.55; }
+  // 连接头部与触手的“裙边”，让外轮廓连续
+  add(new THREE.SphereGeometry(0.3, 32, 16).scale(0.92, 0.45, 0.86), mint, 0, 0.53, 0, body);
+  for (const [px, py, pz] of [[-0.3, 1.02, -0.22], [0.31, 0.86, -0.2], [0.0, 1.16, -0.34]]) {
+    const sp = add(new THREE.SphereGeometry(0.045, 10, 8).scale(1, 1, 0.4), noOutline(toon(P.orange)), px, py, pz, body, false);
+    sp.lookAt(new THREE.Vector3(px * 3, py, pz * 3));
+  }
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.056, 14, 10).scale(1, 1.15, 0.5), noOutline(toon(P.line)), s * 0.2, 1.27, 0.315, body, false);
+    add(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), s * 0.2 + 0.02, 1.3, 0.34, body, false);
+    add(new THREE.SphereGeometry(0.035, 8, 6).scale(1.3, 0.7, 0.4), noOutline(toon(0xF4C0B0)), s * 0.28, 1.18, 0.3, body, false);
+  }
+  // 正面小方屏
+  const rr = new THREE.Shape(); const W = 0.42, H = 0.34, R = 0.07;
+  rr.moveTo(-W / 2 + R, -H / 2); rr.lineTo(W / 2 - R, -H / 2); rr.quadraticCurveTo(W / 2, -H / 2, W / 2, -H / 2 + R); rr.lineTo(W / 2, H / 2 - R); rr.quadraticCurveTo(W / 2, H / 2, W / 2 - R, H / 2); rr.lineTo(-W / 2 + R, H / 2); rr.quadraticCurveTo(-W / 2, H / 2, -W / 2, H / 2 - R); rr.lineTo(-W / 2, -H / 2 + R); rr.quadraticCurveTo(-W / 2, -H / 2, -W / 2 + R, -H / 2);
+  add(new THREE.ExtrudeGeometry(rr, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 }), deep, 0, 0.98, 0.3, body);
+  add(new THREE.PlaneGeometry(0.34, 0.26), noOutline(new THREE.MeshBasicMaterial({ map: screen.tex })), 0, 0.98, 0.367, body, false);
+  // 两颗实体按键：普通键（小、薄荷）+ GROUP 键（大、橙）
+  const b1 = add(new THREE.CylinderGeometry(0.045, 0.05, 0.05, 20), mint, -0.12, 0.72, 0.285, body); b1.rotation.x = Math.PI / 2 - 0.5;
+  const b2 = add(new THREE.CylinderGeometry(0.078, 0.084, 0.065, 24), orange, 0.1, 0.71, 0.282, body); b2.rotation.x = Math.PI / 2 - 0.55;
+  const lbl = add(new THREE.PlaneGeometry(0.15, 0.047), noOutline(new THREE.MeshBasicMaterial({ map: groupLabelTex, transparent: true })), 0.1, 0.615, 0.262, body, false); lbl.rotation.x = -0.7;
+  // 六条渐细的短触手，一条卷成挂绳环
+  const tentacles = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+    const dx = Math.cos(a), dz = Math.sin(a);
+    const pivot = new THREE.Group(); pivot.position.set(dx * 0.22, 0.5, dz * 0.19); body.add(pivot);
+    const L = dz > 0.5 ? 0.78 : 1;
+    const pts = [new THREE.Vector3(-dx * 0.04, 0.06, -dz * 0.04), new THREE.Vector3(dx * 0.08 * L, -0.15 * L, dz * 0.08 * L), new THREE.Vector3(dx * 0.2 * L, -0.31 * L, dz * 0.2 * L),
+      new THREE.Vector3(dx * 0.34 * L, -0.36 * L, dz * 0.34 * L), new THREE.Vector3(dx * 0.42 * L, -0.27 * L, dz * 0.42 * L)];
+    if (k === 4) pts.push(new THREE.Vector3(dx * 0.4 * L, -0.17 * L, dz * 0.4 * L));
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const mat = k % 2 ? fin : cap;
+    add(taperTube(curve, 28, 0.085, 0.045), mat, 0, 0, 0, pivot);
+    const end = curve.getPoint(1);
+    add(new THREE.SphereGeometry(0.045, 12, 8), mat, end.x, end.y, end.z, pivot, false);
+    if (k === 4) {
+      const loop = add(new THREE.TorusGeometry(0.1, 0.024, 10, 28), orange, end.x + dx * 0.02, end.y + 0.09, end.z + dz * 0.02, pivot);
+      loop.rotation.y = -a + Math.PI / 2;
+    }
+    tentacles.push(pivot);
+  }
+  return { g, body, tentacles };
+}
+
+const screenShow=makeScreen(),screenA=makeScreen(),screenB=makeScreen();
+// External product study on a separate round pedestal.
+const pedestal=new THREE.Group();pedestal.name='Enlarged product study / outside site';pedestal.position.set(8.0,-.45,1.0);scene.add(pedestal);
+add(new THREE.CylinderGeometry(.97,1.06,.22,64),toon(P.deep),0,.12,0,pedestal);add(new THREE.CylinderGeometry(.96,.97,.08,64),toon(0xe8f3ef),0,.27,0,pedestal);
+const hero=makeFishPal(screenShow);hero.g.scale.setScalar(1.85);hero.g.position.y=.32;pedestal.add(hero.g);
+// Proposed toy-box invitation at the front edge of the existing aisle.
+const invitation=new THREE.Group();invitation.name='Proposed invitation / portable, not existing architecture';invitation.position.set(-.54,0,3.38);invitation.rotation.y=.14;site.add(invitation);
+const BW=1.2,BH=1.95,BD=.68;box(0,.07,0,BW+.08,.14,BD+.08,toon(P.orange),invitation);
+const print=canvasTex(256,384,(c,W,H)=>{c.fillStyle='#bfdfe5';c.fillRect(0,0,W,H);c.strokeStyle='#eaf7f0';c.lineWidth=4;for(let i=0;i<8;i++){c.beginPath();for(let x=0;x<=W;x+=4)c.lineTo(x,i*50+Math.sin(x*.025+i)*8);c.stroke()}});
+box(0,BH/2,-BD/2,.0+BW,BH,.045,toon(0xffffff,{map:print}),invitation);for(let x of [-BW/2,BW/2])box(x,BH/2,0,.065,BH,BD,toon(P.iceMid),invitation);box(0,BH-.04,0,BW,.12,BD,toon(P.white),invitation);
+const glassWindow=add(new THREE.PlaneGeometry(BW-.13,BH-.28),glass,0,BH/2+.015,BD/2+.006,invitation,false);glassWindow.renderOrder=7;
+for(let x of [-BW/2+.03,BW/2-.03])box(x,BH/2,BD/2,.07,BH,.03,toon(P.white),invitation);
+let header=new THREE.Shape();header.moveTo(-.63,0);header.lineTo(.63,0);header.lineTo(.63,.14);header.quadraticCurveTo(0,.6,-.63,.14);header.closePath();let hole=new THREE.Path();hole.absellipse(0,.23,.13,.032,0,Math.PI*2,true);header.holes.push(hole);add(new THREE.ExtrudeGeometry(header,{depth:.035,bevelEnabled:false}),toon(P.iceMid),0,BH,.3,invitation);
+const giant=makeFishPal(screenShow);giant.g.scale.setScalar(.93);giant.g.position.set(0,.18,0);invitation.add(giant.g);
+box(.86,.49,0,.43,.98,.54,toon(0xd5e8e9),invitation);for(let y of [.09,.4,.71,1.02])box(.86,y,.05,.46,.035,.62,toon(P.white),invitation);for(let y of [.13,.44,.75]){let mini=makeFishPal(screenShow);mini.g.scale.setScalar(.18);mini.g.position.set(.86,y,.21);invitation.add(mini.g)}
+contact(-.4,3.38,1.9,.95);
+const DOWN = new THREE.Vector3(0, -1, 0);
+const L1 = 0.26, L2 = 0.25;
+function makePerson(o) {
+  const g = new THREE.Group();
+  const skin = toonF(P.skin), shirt = toonF(o.shirt), pants = toonF(o.pants), hairM = toonF(o.hair || 0x3a2f2c), shoe = toonF(o.shoe || P.white);
+  const hs = o.headScale || 1, hipY = 0.78;
+  const legs = [], arms = [], elbows = [], hands = [];
+  for (const s of [-1, 1]) {
+    const p = new THREE.Group(); p.position.set(0.09 * s, hipY, 0); g.add(p);
+    add(new THREE.CapsuleGeometry(0.075, 0.5, 4, 8), pants, 0, -0.36, 0, p);
+    add(new THREE.BoxGeometry(0.15, 0.09, 0.24), shoe, 0, -0.72, 0.04, p);
+    legs.push(p);
+  }
+  add(new THREE.CapsuleGeometry(0.19, 0.36, 4, 10), shirt, 0, 1.08, 0, g);
+  if (o.apron) add(new THREE.BoxGeometry(0.34, 0.75, 0.04), toonF(o.apron), 0, 0.88, 0.19, g);
+  for (const s of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(0.26 * s, 1.34, 0); g.add(sh);
+    add(new THREE.CapsuleGeometry(0.062, 0.16, 4, 8), shirt, 0, -0.13, 0, sh);
+    const el = new THREE.Group(); el.position.y = -L1; sh.add(el);
+    add(new THREE.SphereGeometry(0.058, 8, 6), skin, 0, 0, 0, el, false);
+    add(new THREE.CapsuleGeometry(0.052, 0.15, 4, 8), skin, 0, -0.12, 0, el);
+    const hand = add(new THREE.SphereGeometry(0.066, 10, 8), skin, 0, -L2, 0, el);
+    arms.push(sh); elbows.push(el); hands.push(hand);
+  }
+  const head = new THREE.Group(); head.position.y = 1.62 + (hs - 1) * 0.13; g.add(head);
+  add(new THREE.SphereGeometry(0.17 * hs, 20, 14), skin, 0, 0, 0, head);
+  const hair = add(new THREE.SphereGeometry(0.185 * hs, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.56), hairM, 0, 0.015 * hs, -0.01, head); hair.rotation.x = -0.38;
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.026 * hs, 8, 6).scale(0.8, 1.25, 0.6), noOutline(toon(P.line)), 0.066 * s * hs, -0.005, 0.152 * hs, head, false);
+    add(new THREE.SphereGeometry(0.022 * hs, 8, 6).scale(1, 0.6, 0.4), noOutline(toon(0xF2B2A6)), 0.1 * s * hs, -0.06 * hs, 0.13 * hs, head, false);
+  }
+  if (o.buns) for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.07 * hs, 10, 8), hairM, 0.15 * s * hs, 0.12 * hs, -0.03, head);
+  if (o.cap) { add(new THREE.SphereGeometry(0.19 * hs, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42), toonF(o.cap), 0, 0.03 * hs, 0, head); add(new THREE.BoxGeometry(0.22 * hs, 0.02, 0.16 * hs), toonF(o.cap), 0, 0.06 * hs, 0.2 * hs, head); }
+  g.scale.setScalar(o.scale || 1);
+  // 默认放松姿态：手肘微弯
+  for (let i = 0; i < 2; i++) { arms[i].rotation.z = (i ? 1 : -1) * 0.08; elbows[i].rotation.x = -0.25; }
+  return { g, legs, arms, elbows, hands, head, s: o.scale || 1 };
+}
+// 两段手臂 IK：让手准确落在世界坐标目标点上；pole 决定手肘朝向
+const _v = new THREE.Vector3(), _ax = new THREE.Vector3(), _q = new THREE.Quaternion();
+function reachArm(p, i, worldTarget, pole) {
+  p.g.updateMatrixWorld(true);
+  const t = p.g.worldToLocal(_v.copy(worldTarget)).sub(p.arms[i].position);
+  const dir = t.clone().normalize();
+  const d = clamp(t.length(), 0.08, L1 + L2 - 0.003);
+  const a1 = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+  _ax.crossVectors(dir, pole).normalize();
+  const upper = dir.clone().applyAxisAngle(_ax, a1);
+  const elbowPos = upper.clone().multiplyScalar(L1);
+  const fore = dir.clone().multiplyScalar(d).sub(elbowPos).normalize();
+  p.arms[i].quaternion.setFromUnitVectors(DOWN, upper);
+  _q.copy(p.arms[i].quaternion).invert();
+  p.elbows[i].quaternion.setFromUnitVectors(DOWN, fore.applyQuaternion(_q));
+}
+
+// Two-handed held devices: retain the uploaded model's articulated arm solution.
+const target=standees[1],KID_S=.74,DEV_S=.21;
+const kidA=makePerson({shirt:0xf0bd78,pants:P.deep,hair:0x493b38,scale:KID_S,headScale:1.4,cap:P.orange});kidA.g.position.set(target.disc.x,0,target.disc.z+.43);kidA.g.rotation.y=Math.PI;site.add(kidA.g);
+const kidB=makePerson({shirt:0x94bdcb,pants:0x6b879a,hair:0x554344,scale:.72,headScale:1.4,buns:true});kidB.g.position.set(target.disc.x+.65,0,target.disc.z+.76);kidB.g.rotation.y=Math.atan2(-.58,-.32);site.add(kidB.g);
+const devA=makeFishPal(screenA),devB=makeFishPal(screenB);devA.g.scale.setScalar(DEV_S);devB.g.scale.setScalar(DEV_S);site.add(devA.g,devB.g);
+const POLE_L=new THREE.Vector3(-1,-.8,-.7).normalize(),POLE_R=new THREE.Vector3(1,-.8,-.7).normalize();
+function holdDevice(kid,dev,center,faceYaw,tilt=0){dev.g.rotation.set(tilt,faceYaw,0,'YXZ');dev.g.position.copy(center).add(new THREE.Vector3(0,-.96*DEV_S,0));const side=new THREE.Vector3(Math.cos(faceYaw),0,-Math.sin(faceYaw));const back=new THREE.Vector3(Math.sin(faceYaw),0,Math.cos(faceYaw)).multiplyScalar(.012);const hL=center.clone().addScaledVector(side,-.09).add(new THREE.Vector3(0,-.032,0)).add(back),hR=center.clone().addScaledVector(side,.09).add(new THREE.Vector3(0,-.032,0)).add(back);kid.g.updateMatrixWorld(true);const a0=kid.arms[0].getWorldPosition(new THREE.Vector3()),a1=kid.arms[1].getWorldPosition(new THREE.Vector3());let swap=a0.distanceTo(hL)+a1.distanceTo(hR)>a0.distanceTo(hR)+a1.distanceTo(hL);reachArm(kid,0,swap?hR:hL,POLE_L);reachArm(kid,1,swap?hL:hR,POLE_R)}
+const parent=makePerson({shirt:0xd5c8b6,pants:0x637f91,hair:0x39393b});parent.g.position.set(3.2,0,1.74);parent.g.rotation.y=-2.6;site.add(parent.g);
+const worker=makePerson({shirt:0x9cb9c6,pants:P.deep,hair:0x3b3941,apron:0x71909c,cap:0xd8ecea});worker.g.position.set(.1,0,-2.89);worker.g.rotation.y=.35;site.add(worker.g);
+contact(kidA.g.position.x,kidA.g.position.z,.62,.5);contact(kidB.g.position.x,kidB.g.position.z,.62,.5);contact(3.2,1.74,.7,.5);
+// Collection feedback is local to the devices, never a HUD.
+const catchSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:canvasTex(64,64,(c)=>{c.fillStyle='#eca369';c.beginPath();c.ellipse(29,31,15,9,0,0,Math.PI*2);c.fill();c.beginPath();c.moveTo(41,31);c.lineTo(54,22);c.lineTo(54,40);c.fill();c.fillStyle='#365264';c.fillRect(20,28,4,4)}),transparent:true,depthWrite:false}));catchSprite.scale.setScalar(.2);catchSprite.visible=false;site.add(catchSprite);
+const linkSparks=Array.from({length:8},()=>{let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:P.ring,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));sp.visible=false;site.add(sp);return sp});
+
+const Y0=1.16;
+function wholeFish(col, len, x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.04, z); g.rotation.y = ry; scene.add(g);
+  const bs = new THREE.Shape(); const L = len, Hh = len * 0.2;
+  bs.moveTo(L * 0.5, 0); bs.bezierCurveTo(L * 0.4, Hh * 1.1, -L * 0.1, Hh * 1.15, -L * 0.32, Hh * 0.25);
+  bs.lineTo(-L * 0.55, Hh * 0.75); bs.quadraticCurveTo(-L * 0.46, 0, -L * 0.55, -Hh * 0.75); bs.lineTo(-L * 0.32, -Hh * 0.25);
+  bs.bezierCurveTo(-L * 0.1, -Hh * 1.15, L * 0.4, -Hh * 1.1, L * 0.5, 0);
+  const geo = new THREE.ExtrudeGeometry(bs, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.02, bevelSegments: 3, curveSegments: 14 });
+  geo.rotateX(-Math.PI / 2);
+  add(geo, toonF(col), 0, 0, 0, g);
+  add(new THREE.PlaneGeometry(L * 0.55, Hh * 0.35).rotateX(-Math.PI / 2), noOutline(toon(0xf3f7f8)), 0.02, 0.1, Hh * 0.35, g, false);
+  add(new THREE.SphereGeometry(len * 0.04, 8, 6), noOutline(toon(P.line)), L * 0.36, 0.1, -Hh * 0.25, g, false);
+  add(new THREE.TorusGeometry(len * 0.06, 0.006, 4, 12, Math.PI).rotateX(-Math.PI / 2), noOutline(toon(P.deep)), L * 0.26, 0.1, 0, g, false);
+}
+function prawn(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.03, z); g.rotation.y = ry; scene.add(g);
+  const b = add(new THREE.TorusGeometry(0.075, 0.03, 8, 16, Math.PI * 1.2), toonF(0xEE9A72), 0, 0, 0, g); b.rotation.x = Math.PI / 2;
+  const fan = new THREE.Shape(); fan.moveTo(0, 0); fan.lineTo(0.06, 0.05); fan.lineTo(0.06, -0.05); fan.closePath();
+  const f = add(new THREE.ShapeGeometry(fan).rotateX(-Math.PI / 2), toonF(0xE07F5C, { side: THREE.DoubleSide }), -0.075, 0.01, -0.02, g, false); f.rotation.y = 2.2;
+  for (const s of [-1, 1]) { const a = add(new THREE.CylinderGeometry(0.004, 0.004, 0.2, 4), noOutline(toon(0xE07F5C)), 0.1, 0, 0.05 + s * 0.02, g, false); a.rotation.set(Math.PI / 2, 0, s * 0.4); }
+}
+function crab(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.05, z); g.rotation.y = ry; scene.add(g);
+  const cm = toonF(0xE08A6E);
+  add(new THREE.SphereGeometry(0.2, 18, 10).scale(1, 0.36, 0.72), cm, 0, 0, 0, g);
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < 3; k++) { const l = add(new THREE.CapsuleGeometry(0.016, 0.15, 3, 6), cm, s * 0.25, -0.02, -0.09 + k * 0.08, g, false); l.rotation.set(0, 0, Math.PI / 2 + s * 0.35); }
+    const arm = add(new THREE.CapsuleGeometry(0.025, 0.1, 3, 6), cm, s * 0.14, 0, 0.17, g, false); arm.rotation.set(Math.PI / 2, 0, -s * 0.6);
+    add(new THREE.SphereGeometry(0.055, 10, 8).scale(1, 0.65, 1.4), cm, s * 0.18, 0, 0.26, g);
+    add(new THREE.ConeGeometry(0.025, 0.07, 6).rotateX(Math.PI / 2), cm, s * 0.15, 0, 0.33, g, false);
+  }
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.018, 6, 6), noOutline(toon(P.line)), s * 0.05, 0.07, 0.13, g, false);
+}
+function oyster(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.02, z); g.rotation.y = ry; scene.add(g);
+  const shell = new THREE.Shape(); shell.moveTo(-0.11, 0); shell.quadraticCurveTo(-0.1, 0.09, 0.02, 0.08); shell.quadraticCurveTo(0.14, 0.05, 0.12, -0.02); shell.quadraticCurveTo(0.05, -0.09, -0.11, 0);
+  add(new THREE.ExtrudeGeometry(shell, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 }).rotateX(-Math.PI / 2), toonF(0x8FA4AE), 0, 0, 0, g);
+  add(new THREE.CircleGeometry(0.06, 14).rotateX(-Math.PI / 2).scale(1.3, 1, 0.9), noOutline(toon(0xF1ECDD)), 0.01, 0.036, -0.005, g, false);
+  add(new THREE.SphereGeometry(0.025, 8, 6).scale(1.2, 0.3, 1), noOutline(toon(0xBDB4A2)), 0.01, 0.04, -0.005, g, false);
+}
+function squid(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.04, z); g.rotation.y = ry; scene.add(g);
+  const sm = toonF(0xF3DDD9);
+  const m = add(new THREE.ConeGeometry(0.075, 0.36, 14).scale(1, 1, 0.55), sm, 0.12, 0, 0, g); m.rotation.z = -Math.PI / 2;
+  const fin = new THREE.Shape(); fin.moveTo(0, 0); fin.lineTo(-0.1, 0.09); fin.lineTo(-0.12, -0.09); fin.closePath();
+  add(new THREE.ShapeGeometry(fin).rotateX(-Math.PI / 2), toonF(0xF3DDD9, { side: THREE.DoubleSide }), 0.31, 0.02, 0, g, false);
+  add(new THREE.SphereGeometry(0.07, 10, 8).scale(1, 0.55, 1), sm, -0.08, 0, 0, g);
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.015, 6, 6), noOutline(toon(P.line)), -0.08, 0.03, s * 0.05, g, false);
+  for (let k = 0; k < 6; k++) { const t = add(new THREE.CapsuleGeometry(0.011, 0.17 + (k % 2) * 0.06, 3, 5), sm, -0.22, 0, -0.06 + k * 0.024, g, false); t.rotation.z = Math.PI / 2; t.rotation.y = (k - 2.5) * 0.1; }
+}
+
+// Price tags and five recognisable seafood categories, arranged in the real left case.
+for(let j=0;j<4;j++)wholeFish([P.silver,P.orange,P.red,P.silver][j],.65,-3.85+(j%2)*.94,-2.32+Math.floor(j/2)*.4,.15);
+for(let j=0;j<18;j++)prawn(-4.06+(j%6)*.31,-1.24+Math.floor(j/6)*.23,-.15);
+crab(-3.77,-.05,.1);crab(-2.85,.13,-.2);
+for(let j=0;j<10;j++)oyster(-4.08+(j%5)*.38,.79+Math.floor(j/5)*.3,j*.6);
+for(let j=0;j<5;j++)squid(-4+j*.36,2.02,.9);
+for(let j=0;j<5;j++){const z=-2.28+j*1.08;rod([-4.1,1.14,z],[-4.1,1.31,z],.006,darkMetal);add(new THREE.PlaneGeometry(.27,.13),badge(['24.90','18.50','16.00','19.90','22.00'][j],.27,.13),-4.1,1.35,z,site,false)}
+const mists=[];for(let i=0;i<12;i++){let m=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xf4ffff,transparent:true,opacity:.07,depthWrite:false}));m.position.set(-4.1+rnd()*1.5,1.29+rnd()*.15,-2.3+rnd()*4.7);m.scale.set(.7,.2,1);site.add(m);mists.push({m,x:m.position.x,y:m.position.y,phase:rnd()*6})}
+function foam(x,y,z){box(x,y+.14,z,.65,.28,.43,toon(0xf3f6ed));box(x,y+.3,z,.68,.035,.46,toon(0xffffff));box(x,y+.14,z+.22,.2,.055,.008,toon(0xb2c7cd))}
+function crate(x,y,z){box(x,y+.035,z,.66,.07,.47,toon(0x5682a1));for(let i=0;i<4;i++)for(let sign of [-1,1]){box(x,y+.1+i*.065,z+sign*.23,.66,.027,.025,toon(0x6d9fba));box(x+sign*.32,y+.1+i*.065,z,.025,.027,.47,toon(0x6d9fba))}for(let a of [-.31,0,.31])for(let b of [-.23,.23])box(x+a,y+.19,z+b,.022,.31,.022,toon(0x78a9c0));box(x,y+.36,z,.69,.035,.5,toon(0x80b1c3))}
+foam(-5.1,0,-3.33);foam(-5.1,.34,-3.33);crate(4.9,0,-3.48);crate(4.9,.41,-3.48);foam(4.9,0,-2.76);
+// A small waterproof apron on a real-case end rather than a decorative billboard.
+box(-4.52,.62,2.15,.018,.55,.4,toon(0x7196a6));tube([[-4.53,.89,1.98],[-4.53,1.05,2.15],[-4.53,.89,2.32]],.012,toon(0x7297a8));
+// Studio shadow under the collectible, not an extra physical floor in the market.
+const shadowPlane=add(new THREE.PlaneGeometry(80,80).rotateX(-Math.PI/2),noOutline(new THREE.ShadowMaterial({opacity:.11})),0,-.475,0,scene,false);
+
+// Photo-specific suspended rectangular light frames, globe pendants and metal soffit.
+const soffit=new THREE.Group();soffit.name='Existing rippled mirrored ceiling / single-sided architectural cutaway';site.add(soffit);
+const rippleNormal=canvasTex(512,512,(c,W,H)=>{const img=c.createImageData(W,H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;let a=x*.065+Math.sin(y*.065)*1.5,b=y*.08+Math.sin(x*.05)*2.4;let dx=Math.cos(a)*.42+Math.cos(b+x*.04)*.18,dy=Math.cos(b)*.42+Math.sin(a+y*.03)*.18;img.data[i]=128+dx*83;img.data[i+1]=128+dy*83;img.data[i+2]=220;img.data[i+3]=255}c.putImageData(img,0,0)},[5,4]);rippleNormal.colorSpace=THREE.NoColorSpace;
+const ceilingMat=noOutline(new THREE.MeshStandardMaterial({color:0xd0d9d5,metalness:.93,roughness:.12,normalMap:rippleNormal,normalScale:new THREE.Vector2(.8,.8),side:THREE.FrontSide,envMapIntensity:.9}));
+let mirror=add(new THREE.PlaneGeometry(10.8,7.9).rotateX(Math.PI/2),ceilingMat,0,3.55,-.35,soffit,false);mirror.receiveShadow=false;
+// Thin seams visible from below, invisible top faces preserve the cutaway view.
+for(let x=-5.2;x<5.3;x+=1.34){let seam=add(new THREE.PlaneGeometry(.007,7.88).rotateX(Math.PI/2),noOutline(new THREE.MeshBasicMaterial({color:0x80999c})),x,3.541,-.35,soffit,false)}
+function lightFrame(x,z,w,d,y){let g=new THREE.Group();g.name='Existing suspended linear light frame';site.add(g);for(let xx of [x-w/2,x+w/2]){box(xx,y,z,.035,.065,d,lightMetal,g,false);box(xx,y-.038,z,.024,.008,d-.02,noOutline(new THREE.MeshBasicMaterial({color:0xf7ffef})),g,false)}for(let zz of [z-d/2,z+d/2]){box(x,y,zz,w,.065,.035,lightMetal,g,false);box(x,y-.038,zz,w-.02,.008,.024,noOutline(new THREE.MeshBasicMaterial({color:0xf7ffef})),g,false)}for(let xx of [x-w/2,x+w/2])for(let zz of [z-d/2,z+d/2])rod([xx,y,zz],[xx,3.55,zz],.004,darkMetal,g)}
+lightFrame(-.2,-1.1,8.8,3.3,2.87);lightFrame(1.8,-3.51,5.8,.75,2.87);
+for(const [x,z] of [[-4.6,-1.4],[3.75,-2.8]]){rod([x,3.55,z],[x,3.05,z],.004,darkMetal);add(new THREE.SphereGeometry(.18,24,16),noOutline(new THREE.MeshBasicMaterial({color:0xf9ffed})),x,2.89,z,site,false)}
+// Real stall plaques are present as small in-world fittings, not page UI.
+// Keep signage graphic-only to avoid introducing text panels into the requested scene.
+for(const [x,z] of [[1.3,-1.1],[-3.4,-2.7]]){let m=add(new THREE.BoxGeometry(.58,.39,.018),toon(0x83afb2),x,2.58,z,site,false);for(let k of [-.2,.2])rod([x+k,2.78,z],[x+k,3.5,z],.003,darkMetal);let fish=add(new THREE.ShapeGeometry(fishShape(.25,.13)),noOutline(new THREE.MeshBasicMaterial({color:0xe7f5e9})),x,2.6,z+.012,site,false)}
+// Sample the actual miniature once for the metallic ceiling / damp floor reflection.
+const reflectionTarget=new THREE.WebGLCubeRenderTarget(128,{type:THREE.HalfFloatType});
+const probe=new THREE.CubeCamera(.1,35,reflectionTarget);probe.position.set(0,2.6,-.4);scene.add(probe);
+function captureRoom(){const saved=soffit.visible;soffit.visible=false;probe.update(renderer,scene);soffit.visible=saved;ceilingMat.envMap=reflectionTarget.texture;floorMat.envMap=reflectionTarget.texture;metal.envMap=reflectionTarget.texture;ceilingMat.needsUpdate=floorMat.needsUpdate=metal.needsUpdate=true}
+
+const clock=new THREE.Clock();const pA=new THREE.Vector3(),pB=new THREE.Vector3();
+function poseAt(time){
+ swimmers.forEach(f=>{let a=time*f.speed+f.phase;const rx=.59,rz=.27,dx=-rx*Math.sin(a)*f.speed,dz=rz*Math.cos(a)*f.speed;f.g.position.set(f.cx+Math.cos(a)*rx,f.baseY+Math.sin(time*.7+f.phase)*.025,f.cz+Math.sin(a)*rz);f.g.rotation.y=-Math.atan2(dz,dx);f.tail.rotation.y=Math.sin(time*5+f.phase)*.27});
+ bubbles.forEach(({b,x,z,phase,speed})=>{b.position.set(x+Math.sin(time*1.7+phase)*.01,1.08+((phase+time*speed)%1)*.56,z)});
+ let p=(time%8)/8,reach=smooth(.06,.24,p)*(1-smooth(.5,.64,p));
+ const restA=new THREE.Vector3(0,1.1,.31);kidA.g.updateMatrixWorld(true);kidA.g.localToWorld(restA);const touch=target.disc.clone().add(new THREE.Vector3(0,0,.07));const centerA=new THREE.Vector3().lerpVectors(restA,touch,reach);holdDevice(kidA,devA,centerA,0,-.12*(1-reach));kidA.head.rotation.x=.25+reach*.08;
+ let lean=smooth(.48,.63,p)*(1-smooth(.84,.97,p));kidB.g.position.x=target.disc.x+.65-lean*.12;kidB.g.position.z=target.disc.z+.76-lean*.06;kidB.g.updateMatrixWorld(true);let bRest=new THREE.Vector3(0,1.09,.3);kidB.g.localToWorld(bRest);let bMeet=centerA.clone().add(new THREE.Vector3(.23,.015,.17));const centerB=new THREE.Vector3().lerpVectors(bRest,bMeet,lean*.35);holdDevice(kidB,devB,centerB,kidB.g.rotation.y+Math.PI,-.12);kidB.head.rotation.x=.24;kidB.head.rotation.y=-.18*lean;
+ const touching=p>.24&&p<.47,sharing=p>.64&&p<.89;
+ standees.forEach((st,i)=>{let pulse=.5+.5*Math.sin(time*1.45+i*.7);st.ringMat.opacity=.55+pulse*.45;st.haloMat.opacity=.12+pulse*.07+(i===1&&touching?.2:0)});
+ catchSprite.visible=p>.28&&p<.41;if(catchSprite.visible){let u=smooth(.28,.41,p);catchSprite.position.lerpVectors(target.disc,centerA,u);catchSprite.position.y+=Math.sin(u*Math.PI)*.16;catchSprite.position.z+=.075;catchSprite.scale.setScalar(.22-u*.08)}
+ linkSparks.forEach((sp,i)=>{sp.visible=sharing;if(sharing){let u=(i/8+time*.4)%1;sp.position.lerpVectors(centerA,centerB,u);sp.position.y+=Math.sin(u*Math.PI)*.1;sp.scale.setScalar(.035+.03*Math.sin(u*Math.PI));sp.material.opacity=.4*Math.sin(u*Math.PI)}});
+ screenA.flash=p>.4&&p<.92?1:0;screenA.partner=sharing?1:0;screenB.flash=sharing?1:0;screenB.partner=sharing?1:0;screenShow.draw(time);screenA.draw(time);screenB.draw(time+.2);
+ hero.g.rotation.y=-.15+time*.12;hero.g.position.y=.32+Math.sin(time*.8)*.012;
+ for(const pal of [hero,giant,devA,devB])pal.tentacles.forEach((t,i)=>{t.rotation.x=Math.sin(time+i)*.025;t.rotation.z=Math.cos(time*.8+i)*.02});
+ mists.forEach(({m,x,y,phase})=>{m.position.x=x+Math.sin(time*.35+phase)*.08;m.position.y=y+Math.sin(time*.6+phase)*.04;m.material.opacity=.035+.025*(1+Math.sin(time*.45+phase))});
+ parent.head.rotation.y=Math.sin(time*.4)*.08;worker.arms[0].rotation.x=-.6+Math.sin(time)*.09;worker.elbows[0].rotation.x=-.6;worker.head.rotation.x=.16;
+}
+poseAt(0);captureRoom();
+function animate(){requestAnimationFrame(animate);poseAt(clock.getElapsedTime());controls.update();effect.render(scene,camera)}animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);effect.setSize(innerWidth,innerHeight)});
+window.__fishpalRealSite={scene,site,camera,renderer,controls,poseAt,swimmers,standees,kidA,kidB,devA,devB,pedestal,soffit,reset,metadata:{surveyVerified:false,unit:'estimated metre',source:'BVN reflective ceiling and live-tank retail corner',interventions:['FishPal','NFC stands','invitation'],architectureCutaway:'ceiling underside is one-sided'}};
+</script></body></html>

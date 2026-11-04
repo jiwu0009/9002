@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FishPal 微缩模型</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #EAF0F2; }
+  canvas { display: block; touch-action: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
+
+/* ================= 配色（冷色搭空间，暖色标重点） ================= */
+const P = {
+  bg: '#EAF0F2', white: 0xF5FBF8, mint: 0xC8ECE5, ice: 0xC1E4EF, iceMid: 0x8BBBD1,
+  deep: 0x4A738C, line: 0x365264, orange: 0xF2A56D, red: 0xDA7E83, silver: 0xB5CBD4,
+  ring: 0x8EEEFF, lcd: '#B8D9CB', skin: 0xF6D9C4,
+};
+const OUT = [0x36 / 255, 0x52 / 255, 0x64 / 255];
+
+/* ================= 基础设置 ================= */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(P.bg);
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.1, 300);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(3.4, 0.7, -1.2);
+controls.minDistance = 5;
+controls.maxDistance = 90;
+controls.maxPolarAngle = Math.PI * 0.48;
+{
+  const a = innerWidth / innerHeight;
+  const dist = Math.max(35, 58 / a);
+  camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(-0.02, 0.46, 0.88).normalize(), dist);
+}
+const effect = new OutlineEffect(renderer, { defaultThickness: 0.0024, defaultColor: OUT, defaultAlpha: 0.8 });
+
+// 灯光：柔和主光（暖白，给肤色和橙色留温度）+ 冷色补光 + 适度环境光
+scene.add(new THREE.HemisphereLight(0xeef6fb, 0x9db3c4, 1.15));
+const key = new THREE.DirectionalLight(0xfff3e4, 2.6);
+key.position.set(-8, 18, 12);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -22, right: 22, top: 14, bottom: -14, near: 1, far: 70 });
+key.shadow.bias = -0.0006; key.shadow.normalBias = 0.02;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xcfe3ff, 0.55);
+fill.position.set(12, 6, -8);
+scene.add(fill);
+
+/* ================= 材质与工具 ================= */
+// 四阶明暗：亮面 / 中间色 / 阴影面 / 接触暗部
+const grad = new THREE.DataTexture(new Uint8Array([95, 95, 95, 255, 150, 150, 150, 255, 205, 205, 205, 255, 255, 255, 255, 255]), 4, 1, THREE.RGBAFormat);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+// 背景结构：细、轻的深灰蓝线
+const toon = (c, o = {}) => { const m = new THREE.MeshToonMaterial({ color: c, gradientMap: grad, ...o }); m.userData.outlineParameters = { thickness: 0.0022, color: OUT, alpha: 0.7 }; return m; };
+// 主体（FishPal、人物、鱼、海鲜、立牌）：更清楚的外轮廓
+const toonF = (c, o = {}) => { const m = toon(c, o); m.userData.outlineParameters = { thickness: 0.0042, color: OUT, alpha: 1 }; return m; };
+const noOutline = (m) => { m.userData.outlineParameters = { visible: false }; return m; };
+function add(geo, mat, x = 0, y = 0, z = 0, parent = scene, shadow = true) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z);
+  m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m;
+}
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry(9202);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  return t;
+}
+const softTex = canvasTex(64, 64, (x) => {
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+});
+// 接触阴影：让物体“站得住”
+const contactMat = noOutline(new THREE.MeshBasicMaterial({ map: softTex, color: P.line, transparent: true, opacity: 0.32, depthWrite: false }));
+function contact(x, z, sx, sz, y = 0.012, parent = scene, op) {
+  const m = add(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), op ? noOutline(contactMat.clone()) : contactMat, x, y, z, parent, false);
+  if (op) m.material.opacity = op;
+  m.scale.set(sx, 1, sz); m.renderOrder = 1; return m;
+}
+
+/* ================= 底座 x -12~12, z -6~3.6 ================= */
+add(new THREE.BoxGeometry(24.7, 0.5, 10.3), toon(P.deep), 0, -0.85, -1.2);
+add(new THREE.BoxGeometry(24.9, 0.06, 10.5), toon(P.line), 0, -1.12, -1.2);
+add(new THREE.BoxGeometry(24, 0.6, 9.6), toon(0xd3dee3), 0, -0.3, -1.2);
+const floorTex = canvasTex(512, 256, (x, w, h) => {
+  x.fillStyle = '#E4ECEF'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 500; i++) { x.fillStyle = 'rgba(120,150,165,0.10)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  x.strokeStyle = 'rgba(74,115,140,0.18)'; x.lineWidth = 2;
+  for (let i = 0; i <= w; i += 128) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, h); x.stroke(); }
+  for (let j = 0; j <= h; j += 128) { x.beginPath(); x.moveTo(0, j); x.lineTo(w, j); x.stroke(); }
+}, [6, 2.4]);
+add(new THREE.PlaneGeometry(24, 9.6).rotateX(-Math.PI / 2), noOutline(toon(0xffffff, { map: floorTex })), 0, 0.002, -1.2, scene, false);
+// 排水沟格栅
+const grateTex = canvasTex(256, 16, (x, w, h) => { x.fillStyle = '#4A738C'; x.fillRect(0, 0, w, h); x.fillStyle = '#9fb7c4'; for (let i = 0; i < w; i += 6) x.fillRect(i, 2, 3, h - 4); }, [14, 1]);
+add(new THREE.PlaneGeometry(11.2, 0.22).rotateX(-Math.PI / 2), noOutline(toon(0xffffff, { map: grateTex })), 6, 0.006, -2.55, scene, false);
+// 湿地面：低对比的柔和亮斑
+const puddleMat = noOutline(new THREE.MeshBasicMaterial({ map: softTex, color: 0xf4fbff, transparent: true, opacity: 0.55, depthWrite: false }));
+const shineMat = noOutline(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }));
+for (const [x, z, sx, sz] of [[3.5, -1.8, 1.6, 0.6], [8.6, -1.6, 1.1, 0.45], [-1.5, 0.9, 1.3, 0.55], [5.2, 1.6, 0.9, 0.35]]) {
+  const p = add(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), puddleMat, x, 0.008, z, scene, false); p.scale.set(sx * 2, 1, sz * 2);
+  const s = add(new THREE.PlaneGeometry(0.45 * sx, 0.04).rotateX(-Math.PI / 2), shineMat, x - 0.2 * sx, 0.01, z - 0.1 * sz, scene, false); s.rotation.y = 0.2;
+}
+
+/* ================= 后墙：规则釉面砖（轻微冷色变化） ================= */
+const tileTex = canvasTex(512, 256, (x, w, h) => {
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 8; j++) {
+    const l = 46 + ((i * 7 + j * 3) % 3) * 1.5;
+    x.fillStyle = `hsl(203, 30%, ${l}%)`; x.fillRect(i * 32, j * 32, 32, 32);
+    x.fillStyle = 'rgba(255,255,255,0.14)'; x.fillRect(i * 32 + 4, j * 32 + 4, 9, 2);
+  }
+  x.strokeStyle = '#3d6176'; x.lineWidth = 2;
+  for (let i = 0; i <= w; i += 32) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, h); x.stroke(); }
+  for (let j = 0; j <= h; j += 32) { x.beginPath(); x.moveTo(0, j); x.lineTo(w, j); x.stroke(); }
+}, [6, 2]);
+add(new THREE.BoxGeometry(24, 4.2, 0.3), [toon(P.deep), toon(P.deep), toon(P.deep), toon(P.deep), toon(0xffffff, { map: tileTex }), toon(P.deep)], 0, 2.1, -5.85);
+add(new THREE.BoxGeometry(24, 0.5, 0.06), toon(0xdbe6eb), 0, 0.25, -5.68, scene, false);                    // 浅色墙裙
+add(new THREE.BoxGeometry(24.2, 0.7, 1.4), toon(P.line), 0, 4.55, -5.3);
+add(new THREE.BoxGeometry(24, 0.06, 0.12), new THREE.MeshBasicMaterial({ color: 0xf2fbff }), 0, 4.17, -4.7, scene, false);
+function neonArch(icon) {
+  return canvasTex(256, 320, (x, w, h) => {
+    x.fillStyle = '#365264'; x.beginPath(); x.moveTo(20, h); x.lineTo(20, 128); x.arc(128, 128, 108, Math.PI, 0); x.lineTo(236, h); x.closePath(); x.fill();
+    x.strokeStyle = '#2a4252'; x.lineWidth = 8; x.stroke();
+    x.save(); x.translate(128, 150); x.lineCap = 'round'; x.lineJoin = 'round';
+    for (const [lw, col] of [[16, 'rgba(142,238,255,0.28)'], [6, '#e6fbff']]) {
+      x.strokeStyle = col; x.lineWidth = lw; x.beginPath();
+      if (icon === 'fish') { x.ellipse(-10, 0, 52, 30, 0, 0, Math.PI * 2); x.moveTo(40, 0); x.lineTo(76, -26); x.lineTo(76, 26); x.closePath(); }
+      if (icon === 'snow') { for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; x.moveTo(Math.cos(a) * -60, Math.sin(a) * -60); x.lineTo(Math.cos(a) * 60, Math.sin(a) * 60); } for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, px = Math.cos(a) * 38, py = Math.sin(a) * 38; x.moveTo(px, py); x.lineTo(px + Math.cos(a + 0.7) * 16, py + Math.sin(a + 0.7) * 16); x.moveTo(px, py); x.lineTo(px + Math.cos(a - 0.7) * 16, py + Math.sin(a - 0.7) * 16); } }
+      if (icon === 'wave') { for (let r = -1; r <= 1; r++) { x.moveTo(-70, r * 30); for (let k = 0; k <= 28; k++) x.lineTo(-70 + k * 5, r * 30 + Math.sin(k * 0.45) * 10); } }
+      x.stroke();
+    }
+    x.restore();
+  });
+}
+for (const [xp, icon] of [[-0.05, 'fish'], [3.5, 'snow'], [8.8, 'wave']]) {
+  add(new THREE.PlaneGeometry(1.7, 2.12), noOutline(new THREE.MeshBasicMaterial({ map: neonArch(icon), transparent: true })), xp, 2.95, -5.69, scene, false);
+}
+
+/* ================= 立柱、灯管、球形吊灯、挂牌 ================= */
+for (const x of [-11.75, 11.75]) add(new THREE.BoxGeometry(0.3, 4.9, 0.3), toon(P.line), x, 2.45, -4.7);
+const wire = toon(P.line);
+for (const [x, z, len] of [[-6, -3.6, 8.5], [6, -3.6, 10]]) {
+  add(new THREE.CylinderGeometry(0.008, 0.008, 1.1, 4), wire, x - len / 2 + 0.3, 3.95, z, scene, false);
+  add(new THREE.CylinderGeometry(0.008, 0.008, 1.1, 4), wire, x + len / 2 - 0.3, 3.95, z, scene, false);
+  add(new THREE.BoxGeometry(len, 0.1, 0.22), toon(P.deep), x, 3.42, z, scene, false);
+  const t = add(new THREE.CylinderGeometry(0.05, 0.05, len - 0.2, 10), new THREE.MeshBasicMaterial({ color: 0xf2fbff }), x, 3.33, z, scene, false); t.rotation.z = Math.PI / 2;
+}
+for (const x of [2.5, 6, 9.5]) {
+  add(new THREE.CylinderGeometry(0.008, 0.008, 1.2, 4), wire, x, 3.85, -2.9, scene, false);
+  add(new THREE.SphereGeometry(0.3, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfbfdf9 }), x, 3.0, -2.9, scene, false);
+}
+const boardTex = canvasTex(128, 96, (x, w, h) => {
+  x.fillStyle = '#2f4757'; x.fillRect(0, 0, w, h); x.strokeStyle = '#8BBBD1'; x.lineWidth = 5; x.strokeRect(3, 3, w - 6, h - 6);
+  x.strokeStyle = '#eef6f8'; x.lineWidth = 3; x.beginPath(); x.ellipse(56, 46, 26, 14, 0, 0, Math.PI * 2); x.moveTo(80, 46); x.lineTo(98, 34); x.lineTo(98, 58); x.closePath(); x.stroke();
+  x.fillStyle = '#F2A56D'; x.fillRect(22, 72, 40, 4); x.fillStyle = '#C1E4EF'; x.fillRect(68, 72, 30, 4);
+});
+for (const x of [-9.4, -6.0, -2.6]) {
+  for (const s of [-0.3, 0.3]) add(new THREE.CylinderGeometry(0.006, 0.006, 0.9, 4), wire, x + s, 3.0, -4.9, scene, false);
+  add(new THREE.BoxGeometry(0.9, 0.62, 0.04), [toon(P.line), toon(P.line), toon(P.line), toon(P.line), toon(0xffffff, { map: boardTex }), toon(P.line)], x, 2.62, -4.9);
+}
+
+/* ================= 活鱼水缸 ================= */
+const steel = toon(0xc9d7df);
+const steelEdge = toon(0xeef5f8);
+const glassMat = noOutline(new THREE.MeshToonMaterial({ color: 0xeaf8ff, gradientMap: grad, transparent: true, opacity: 0.08, depthWrite: false }));
+const waterMat = noOutline(new THREE.MeshToonMaterial({ color: P.ice, gradientMap: grad, transparent: true, opacity: 0.22, depthWrite: false }));
+const waterTopMat = noOutline(new THREE.MeshBasicMaterial({ color: 0xa9d8ea, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }));
+const waterLineMat = noOutline(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false }));
+const glassLineMat = noOutline(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }));
+const SPECIES = [
+  { body: P.orange, belly: 0xF9D7BC, fin: 0xE58F55 },
+  { body: P.red, belly: 0xF2C3C5, fin: 0xC8686F },
+  { body: P.silver, belly: 0xEEF4F6, fin: 0x8FA9B6 },
+];
+function makeFish(sp, size) {
+  const g = new THREE.Group();
+  add(new THREE.SphereGeometry(0.5, 20, 14).scale(1, 0.6, 0.36), toonF(sp.body), 0, 0, 0, g);
+  add(new THREE.SphereGeometry(0.42, 16, 10).scale(0.92, 0.36, 0.34), noOutline(toon(sp.belly)), 0.03, -0.12, 0, g, false);
+  const tail = new THREE.Group(); tail.position.x = -0.44; g.add(tail);
+  // 分叉尾鳍
+  const ts = new THREE.Shape(); ts.moveTo(0, 0); ts.lineTo(-0.3, 0.22); ts.quadraticCurveTo(-0.22, 0, -0.3, -0.22); ts.closePath();
+  add(new THREE.ExtrudeGeometry(ts, { depth: 0.03, bevelEnabled: false }).translate(0, 0, -0.015), toonF(sp.fin), 0, 0, 0, tail);
+  const ds = new THREE.Shape(); ds.moveTo(-0.22, 0); ds.quadraticCurveTo(-0.02, 0.2, 0.18, 0); ds.closePath();
+  add(new THREE.ExtrudeGeometry(ds, { depth: 0.02, bevelEnabled: false }).translate(0, 0, -0.01), toonF(sp.fin), -0.02, 0.27, 0, g);
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.06, 10, 8), noOutline(toon(0xffffff)), 0.3, 0.06, 0.15 * s, g, false);
+    add(new THREE.SphereGeometry(0.035, 8, 6), noOutline(toon(P.line)), 0.33, 0.06, 0.175 * s, g, false);
+  }
+  g.scale.setScalar(size);
+  return { g, tail };
+}
+const tanks = [];
+[-9.4, -6.0, -2.6].forEach((cx, i) => {
+  const W = 3.1, D = 1.3, H = 1.7, cz = -4.9, baseH = 0.55, WL = H - 0.22;
+  add(new THREE.BoxGeometry(W + 0.1, baseH, D + 0.1), steel, cx, baseH / 2, cz);
+  add(new THREE.BoxGeometry(W + 0.12, 0.03, 0.03), steelEdge, cx, baseH, cz + D / 2 + 0.05, scene, false);
+  add(new THREE.BoxGeometry(W - 0.1, 0.12, D - 0.1), toon(0xe6e2d4), cx, baseH + 0.06, cz, scene, false);
+  for (let k = 0; k < 7; k++) add(new THREE.DodecahedronGeometry(0.05 + rnd() * 0.05, 0), toon(0xb9c2c4), cx - 1.3 + rnd() * 2.6, baseH + 0.13, cz - 0.4 + rnd() * 0.5, scene, false);
+  for (let k = 0; k < 3; k++) {
+    const sx = cx - 1.1 + k * 1.1 + rnd() * 0.3;
+    for (let j = 0; j < 3; j++) { const c = add(new THREE.ConeGeometry(0.05, 0.45 + rnd() * 0.35, 5), toon(0x86c4b2), sx + j * 0.07, baseH + 0.38, cz - 0.4 + rnd() * 0.15, scene, false); c.rotation.z = (rnd() - 0.5) * 0.4; }
+  }
+  // 水体 + 明显的水位线
+  add(new THREE.BoxGeometry(W - 0.06, WL, D - 0.06), waterMat, cx, baseH + WL / 2, cz, scene, false);
+  add(new THREE.PlaneGeometry(W - 0.06, D - 0.06).rotateX(-Math.PI / 2), waterTopMat, cx, baseH + WL, cz, scene, false);
+  add(new THREE.BoxGeometry(W - 0.06, 0.018, 0.01), waterLineMat, cx, baseH + WL, cz + D / 2 - 0.025, scene, false);
+  // 薄玻璃 + 克制的亮线
+  add(new THREE.BoxGeometry(W, H, D), glassMat, cx, baseH + H / 2, cz, scene, false);
+  for (const [ox, w] of [[-0.9, 0.06], [-0.75, 0.025]]) { const l = add(new THREE.PlaneGeometry(w, 1.2), glassLineMat, cx + ox, baseH + 0.9, cz + D / 2 + 0.006, scene, false); l.rotation.z = -0.5; }
+  const e = 0.03;
+  for (const [sx, sy, sz, px, py, pz] of [
+    [W, e, e, 0, 0, D / 2], [W, e, e, 0, 0, -D / 2], [W, e, e, 0, H, D / 2], [W, e, e, 0, H, -D / 2],
+    [e, e, D, W / 2, 0, 0], [e, e, D, -W / 2, 0, 0], [e, e, D, W / 2, H, 0], [e, e, D, -W / 2, H, 0],
+    [e, H, e, W / 2, H / 2, D / 2], [e, H, e, -W / 2, H / 2, D / 2], [e, H, e, W / 2, H / 2, -D / 2], [e, H, e, -W / 2, H / 2, -D / 2]]) {
+    add(new THREE.BoxGeometry(sx, sy, sz), steel, cx + px, baseH + py, cz + pz, scene, false);
+  }
+  add(new THREE.BoxGeometry(W + 0.12, 0.08, D + 0.12), toon(P.deep), cx, baseH + H + 0.04, cz);
+  contact(cx, cz + 0.15, W + 0.8, D + 0.6);
+  const tank = { cx, cz, W, D, y0: baseH + 0.32, y1: baseH + WL - 0.25, fish: [], bubbles: [] };
+  for (let k = 0; k < 4; k++) {
+    const f = makeFish(SPECIES[i], 0.42 + rnd() * 0.12); scene.add(f.g);
+    f.p = new THREE.Vector3(cx + (rnd() - 0.5) * 2, rand(tank.y0, tank.y1), cz + (rnd() - 0.5) * 0.5);
+    f.target = f.p.clone(); f.heading = rnd() * Math.PI * 2; f.speed = rand(0.18, 0.42); f.turn = rand(0.9, 1.6);
+    f.ph = rnd() * 10; f.tailSp = rand(4, 6.5); f.pause = 0;
+    f.g.position.copy(f.p); tank.fish.push(f);
+  }
+  // 少量气泡，速度和位置都不同
+  const bubbleMat = noOutline(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }));
+  for (let k = 0; k < 7; k++) {
+    const b = add(new THREE.SphereGeometry(0.022 + rnd() * 0.025, 8, 6), bubbleMat, 0, tank.y0 + rnd() * WL, 0, scene, false);
+    b.userData = { sp: rand(0.22, 0.55), ph: rnd() * 6, ox: cx + W / 2 - 0.4 + (rnd() - 0.5) * 0.3, oz: cz - 0.3 + (rnd() - 0.5) * 0.25, top: baseH + WL - 0.05 };
+    tank.bubbles.push(b);
+  }
+  add(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 10), toon(P.deep), cx + W / 2 - 0.4, baseH + 0.16, cz - 0.3, scene, false);
+  tanks.push(tank);
+});
+
+/* ================= NFC 鱼形立牌（独立于水缸） ================= */
+function fishShape(w, h) {
+  const s = new THREE.Shape();
+  s.moveTo(w * 0.5, 0);
+  s.bezierCurveTo(w * 0.42, h * 0.55, w * 0.0, h * 0.62, -w * 0.25, h * 0.2);
+  s.lineTo(-w * 0.5, h * 0.5);
+  s.quadraticCurveTo(-w * 0.42, 0, -w * 0.5, -h * 0.5);
+  s.lineTo(-w * 0.25, -h * 0.2);
+  s.bezierCurveTo(w * 0.0, -h * 0.62, w * 0.42, -h * 0.55, w * 0.5, 0);
+  return s;
+}
+const nfcIconTex = canvasTex(256, 256, (x) => {
+  x.fillStyle = '#F5FBF8'; x.beginPath(); x.arc(128, 128, 126, 0, Math.PI * 2); x.fill();
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  x.fillStyle = '#C8ECE5'; x.strokeStyle = '#365264'; x.lineWidth = 12;
+  x.beginPath(); x.roundRect(62, 92, 74, 104, 22); x.fill(); x.stroke();
+  x.fillStyle = '#4A738C'; x.fillRect(80, 112, 38, 30);
+  x.fillStyle = '#F2A56D'; x.beginPath(); x.arc(110, 170, 9, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = '#4fb8d6'; x.lineWidth = 12;
+  for (const r of [34, 58, 82]) { x.beginPath(); x.arc(150, 104, r, -Math.PI * 0.42, Math.PI * 0.05); x.stroke(); }
+});
+const standees = [];
+tanks.forEach((t, i) => {
+  const g = new THREE.Group(); g.position.set(t.cx, 0, -3.0); scene.add(g);
+  add(new THREE.CylinderGeometry(0.28, 0.3, 0.06, 28), steel, 0, 0.03, 0, g);
+  add(new THREE.CylinderGeometry(0.035, 0.035, 0.66, 10), steel, 0, 0.36, 0, g);
+  const ext = { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 16 };
+  add(new THREE.ExtrudeGeometry(fishShape(1.18, 0.7), ext), toonF(P.white), 0, 0.98, -0.04, g);
+  add(new THREE.ExtrudeGeometry(fishShape(1.04, 0.58), ext), toonF(SPECIES[i].body), 0, 0.98, 0.0, g);
+  add(new THREE.SphereGeometry(0.045, 10, 8), noOutline(toon(P.line)), 0.36, 1.05, 0.08, g, false);
+  add(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 32).rotateX(Math.PI / 2), toonF(P.white), -0.04, 0.98, 0.085, g);
+  add(new THREE.PlaneGeometry(0.36, 0.36), noOutline(new THREE.MeshBasicMaterial({ map: nfcIconTex, transparent: true })), -0.04, 0.98, 0.102, g, false);
+  const ringMat = noOutline(new THREE.MeshBasicMaterial({ color: P.ring }));
+  add(new THREE.TorusGeometry(0.215, 0.022, 10, 40), ringMat, -0.04, 0.98, 0.09, g, false);
+  const haloMat = noOutline(new THREE.MeshBasicMaterial({ map: softTex, color: P.ring, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending }));
+  add(new THREE.PlaneGeometry(0.7, 0.7), haloMat, -0.04, 0.98, 0.08, g, false);
+  contact(0, 0.05, 0.9, 0.7, 0.012, g);
+  standees.push({ ringMat, haloMat, flash: 0, disc: new THREE.Vector3(t.cx - 0.04, 0.98, -3.0 + 0.105) });
+});
+
+/* ================= 冰鲜展示柜 ================= */
+const mosaicTex = canvasTex(512, 128, (x, w, h) => {
+  x.fillStyle = '#c3d1d8'; x.fillRect(0, 0, w, h);
+  const cols = ['#9fb3bd', '#d4dfe4', '#eef3f5', '#7a93a0', '#b8c8d0'];
+  for (let i = 0; i < 650; i++) {
+    const cx = Math.random() * w, cy = Math.random() * h, r = 5 + Math.random() * 7;
+    x.fillStyle = cols[Math.floor(Math.random() * cols.length)]; x.beginPath();
+    const n = 4 + Math.floor(Math.random() * 2), a0 = Math.random() * 6;
+    for (let k = 0; k < n; k++) { const a = a0 + k / n * Math.PI * 2 + (Math.random() - 0.5) * 0.5, rr = r * (0.7 + Math.random() * 0.5); x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    x.fill();
+  }
+}, [5, 1]);
+const C = { x0: 0.7, x1: 11.4, z: -3.72, d: 1.45, h: 0.82 };
+const CL = C.x1 - C.x0, CX = (C.x0 + C.x1) / 2;
+add(new THREE.BoxGeometry(CL, C.h - 0.1, C.d), [toon(0xffffff, { map: mosaicTex }), toon(0xffffff, { map: mosaicTex }), toon(P.iceMid), toon(P.iceMid), toon(0xffffff, { map: mosaicTex }), toon(0xb8c8d0)], CX, (C.h - 0.1) / 2 + 0.1, C.z);
+add(new THREE.BoxGeometry(CL - 0.1, 0.1, C.d - 0.1), toon(P.line), CX, 0.05, C.z);                                            // 柜脚
+add(new THREE.BoxGeometry(CL + 0.14, 0.09, C.d + 0.14), toon(P.line), CX, C.h + 0.045, C.z);                                 // 柜沿（加厚）
+add(new THREE.BoxGeometry(CL + 0.14, 0.015, 0.02), steelEdge, CX, C.h + 0.09, C.z + C.d / 2 + 0.07, scene, false);         // 窄亮边
+add(new THREE.BoxGeometry(CL, 0.1, C.d - 0.2), toon(0xe7f4f8), CX, C.h + 0.14, C.z);
+const iceGeo = new THREE.PlaneGeometry(CL - 0.1, C.d - 0.24, 120, 16); iceGeo.rotateX(-Math.PI / 2);
+{ const p = iceGeo.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, Math.random() * 0.04 + Math.sin(p.getX(i) * 9) * 0.008); iceGeo.computeVertexNormals(); }
+add(iceGeo, noOutline(toon(0xf3fafc, { flatShading: true })), CX, C.h + 0.19, C.z, scene, false);
+const iceA = noOutline(toon(0xffffff, { flatShading: true })), iceB = noOutline(toon(P.ice, { flatShading: true }));
+for (let i = 0; i < 260; i++) {
+  const m = add(new THREE.OctahedronGeometry(0.018 + rnd() * 0.022, 0), i % 3 ? iceA : iceB, C.x0 + 0.12 + rnd() * (CL - 0.24), C.h + 0.215, C.z - 0.58 + rnd() * 1.16, scene, false);
+  m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+}
+const guard = add(new THREE.BoxGeometry(CL, 0.36, 0.02), glassMat, CX, C.h + 0.34, C.z + C.d / 2 - 0.02, scene, false); guard.rotation.x = -0.25;
+add(new THREE.BoxGeometry(CL, 0.02, 0.03), steelEdge, CX, C.h + 0.52, C.z + C.d / 2 - 0.065, scene, false);
+add(new THREE.BoxGeometry(CL, 0.95, 0.5), steel, CX, 0.475, -5.25);
+add(new THREE.BoxGeometry(CL, 0.02, 0.52), steelEdge, CX, 0.955, -5.25, scene, false);
+contact(CX, C.z + 0.25, CL + 0.8, C.d + 0.7);
+function waveStrip(len) {
+  const s = new THREE.Shape(); s.moveTo(-len / 2, 0);
+  for (let i = 0; i <= 40; i++) { const x = -len / 2 + len * i / 40; s.lineTo(x, 0.1 + Math.abs(Math.sin(i / 40 * Math.PI * (len / 0.25))) * 0.06); }
+  s.lineTo(len / 2, 0); s.closePath();
+  return new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false });
+}
+const trayBlue = toon(0x5d8fc6);
+add(waveStrip(CL - 0.2), trayBlue, CX, C.h + 0.18, C.z + 0.53, scene, false);
+const sections = 5, secW = CL / sections;
+for (let i = 1; i < sections; i++) { const w = add(waveStrip(C.d - 0.3), trayBlue, C.x0 + i * secW, C.h + 0.18, C.z, scene, false); w.rotation.y = Math.PI / 2; }
+
+// 海鲜：每一类都有清楚的剪影
+const Y0 = C.h + 0.24;
+function wholeFish(col, len, x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.04, z); g.rotation.y = ry; scene.add(g);
+  const bs = new THREE.Shape(); const L = len, Hh = len * 0.2;
+  bs.moveTo(L * 0.5, 0); bs.bezierCurveTo(L * 0.4, Hh * 1.1, -L * 0.1, Hh * 1.15, -L * 0.32, Hh * 0.25);
+  bs.lineTo(-L * 0.55, Hh * 0.75); bs.quadraticCurveTo(-L * 0.46, 0, -L * 0.55, -Hh * 0.75); bs.lineTo(-L * 0.32, -Hh * 0.25);
+  bs.bezierCurveTo(-L * 0.1, -Hh * 1.15, L * 0.4, -Hh * 1.1, L * 0.5, 0);
+  const geo = new THREE.ExtrudeGeometry(bs, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.02, bevelSegments: 3, curveSegments: 14 });
+  geo.rotateX(-Math.PI / 2);
+  add(geo, toonF(col), 0, 0, 0, g);
+  add(new THREE.PlaneGeometry(L * 0.55, Hh * 0.35).rotateX(-Math.PI / 2), noOutline(toon(0xf3f7f8)), 0.02, 0.1, Hh * 0.35, g, false);
+  add(new THREE.SphereGeometry(len * 0.04, 8, 6), noOutline(toon(P.line)), L * 0.36, 0.1, -Hh * 0.25, g, false);
+  add(new THREE.TorusGeometry(len * 0.06, 0.006, 4, 12, Math.PI).rotateX(-Math.PI / 2), noOutline(toon(P.deep)), L * 0.26, 0.1, 0, g, false);
+}
+function prawn(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.03, z); g.rotation.y = ry; scene.add(g);
+  const b = add(new THREE.TorusGeometry(0.075, 0.03, 8, 16, Math.PI * 1.2), toonF(0xEE9A72), 0, 0, 0, g); b.rotation.x = Math.PI / 2;
+  const fan = new THREE.Shape(); fan.moveTo(0, 0); fan.lineTo(0.06, 0.05); fan.lineTo(0.06, -0.05); fan.closePath();
+  const f = add(new THREE.ShapeGeometry(fan).rotateX(-Math.PI / 2), toonF(0xE07F5C, { side: THREE.DoubleSide }), -0.075, 0.01, -0.02, g, false); f.rotation.y = 2.2;
+  for (const s of [-1, 1]) { const a = add(new THREE.CylinderGeometry(0.004, 0.004, 0.2, 4), noOutline(toon(0xE07F5C)), 0.1, 0, 0.05 + s * 0.02, g, false); a.rotation.set(Math.PI / 2, 0, s * 0.4); }
+}
+function crab(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.05, z); g.rotation.y = ry; scene.add(g);
+  const cm = toonF(0xE08A6E);
+  add(new THREE.SphereGeometry(0.2, 18, 10).scale(1, 0.36, 0.72), cm, 0, 0, 0, g);
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < 3; k++) { const l = add(new THREE.CapsuleGeometry(0.016, 0.15, 3, 6), cm, s * 0.25, -0.02, -0.09 + k * 0.08, g, false); l.rotation.set(0, 0, Math.PI / 2 + s * 0.35); }
+    const arm = add(new THREE.CapsuleGeometry(0.025, 0.1, 3, 6), cm, s * 0.14, 0, 0.17, g, false); arm.rotation.set(Math.PI / 2, 0, -s * 0.6);
+    add(new THREE.SphereGeometry(0.055, 10, 8).scale(1, 0.65, 1.4), cm, s * 0.18, 0, 0.26, g);
+    add(new THREE.ConeGeometry(0.025, 0.07, 6).rotateX(Math.PI / 2), cm, s * 0.15, 0, 0.33, g, false);
+  }
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.018, 6, 6), noOutline(toon(P.line)), s * 0.05, 0.07, 0.13, g, false);
+}
+function oyster(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.02, z); g.rotation.y = ry; scene.add(g);
+  const shell = new THREE.Shape(); shell.moveTo(-0.11, 0); shell.quadraticCurveTo(-0.1, 0.09, 0.02, 0.08); shell.quadraticCurveTo(0.14, 0.05, 0.12, -0.02); shell.quadraticCurveTo(0.05, -0.09, -0.11, 0);
+  add(new THREE.ExtrudeGeometry(shell, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 }).rotateX(-Math.PI / 2), toonF(0x8FA4AE), 0, 0, 0, g);
+  add(new THREE.CircleGeometry(0.06, 14).rotateX(-Math.PI / 2).scale(1.3, 1, 0.9), noOutline(toon(0xF1ECDD)), 0.01, 0.036, -0.005, g, false);
+  add(new THREE.SphereGeometry(0.025, 8, 6).scale(1.2, 0.3, 1), noOutline(toon(0xBDB4A2)), 0.01, 0.04, -0.005, g, false);
+}
+function squid(x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, Y0 + 0.04, z); g.rotation.y = ry; scene.add(g);
+  const sm = toonF(0xF3DDD9);
+  const m = add(new THREE.ConeGeometry(0.075, 0.36, 14).scale(1, 1, 0.55), sm, 0.12, 0, 0, g); m.rotation.z = -Math.PI / 2;
+  const fin = new THREE.Shape(); fin.moveTo(0, 0); fin.lineTo(-0.1, 0.09); fin.lineTo(-0.12, -0.09); fin.closePath();
+  add(new THREE.ShapeGeometry(fin).rotateX(-Math.PI / 2), toonF(0xF3DDD9, { side: THREE.DoubleSide }), 0.31, 0.02, 0, g, false);
+  add(new THREE.SphereGeometry(0.07, 10, 8).scale(1, 0.55, 1), sm, -0.08, 0, 0, g);
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.015, 6, 6), noOutline(toon(P.line)), -0.08, 0.03, s * 0.05, g, false);
+  for (let k = 0; k < 6; k++) { const t = add(new THREE.CapsuleGeometry(0.011, 0.17 + (k % 2) * 0.06, 3, 5), sm, -0.22, 0, -0.06 + k * 0.024, g, false); t.rotation.z = Math.PI / 2; t.rotation.y = (k - 2.5) * 0.1; }
+}
+const tagTex = canvasTex(64, 40, (x, w, h) => {
+  x.fillStyle = '#F5FBF8'; x.fillRect(0, 0, w, h); x.fillStyle = '#DA7E83'; x.fillRect(0, 0, w, 9);
+  x.fillStyle = '#365264'; x.fillRect(8, 16, 34, 4); x.fillRect(8, 26, 22, 6); x.fillStyle = '#8BBBD1'; x.fillRect(46, 24, 10, 10);
+});
+function tag(x, z) {
+  add(new THREE.CylinderGeometry(0.008, 0.008, 0.18, 4), toon(P.deep), x, Y0 + 0.08, z, scene, false);
+  const t = add(new THREE.BoxGeometry(0.2, 0.13, 0.01), [toon(P.white), toon(P.white), toon(P.white), toon(P.white), toon(0xffffff, { map: tagTex }), toon(P.white)], x, Y0 + 0.2, z);
+  t.rotation.x = -0.35;
+}
+for (let s = 0; s < sections; s++) {
+  const x0 = C.x0 + s * secW + 0.25;
+  const zf = C.z + 0.38, zb = C.z - 0.35;
+  if (s === 0) { for (let k = 0; k < 4; k++) wholeFish(P.silver, 0.6, x0 + 0.28 + k * 0.42, C.z + (k % 2 ? 0.2 : -0.2), 0.5); }
+  if (s === 1) { for (let r = 0; r < 4; r++) for (let k = 0; k < 7; k++) prawn(x0 + 0.05 + k * 0.24, zb + 0.05 + r * 0.2, -0.4 + (k % 2) * 0.3); }
+  if (s === 2) { for (let k = 0; k < 4; k++) wholeFish([P.red, P.orange, P.red, P.orange][k], 0.6, x0 + 0.28 + k * 0.42, C.z + (k % 2 ? 0.22 : -0.18), (k % 2 ? 0.25 : -0.2)); }
+  if (s === 3) { for (let k = 0; k < 2; k++) crab(x0 + 0.45 + k * 0.85, C.z - 0.12, k * 0.6 - 0.3); for (let k = 0; k < 7; k++) oyster(x0 + 0.05 + k * 0.24, zf - 0.08, k); }
+  if (s === 4) { for (let k = 0; k < 5; k++) squid(x0 + 0.1 + k * 0.32, C.z - 0.05 + (k % 2) * 0.16, Math.PI / 2 + (k % 2 ? 0.15 : -0.15)); }
+  tag(x0 + 0.05, zf + 0.06);
+}
+// 冷雾：薄、慢，只在冰鲜柜上方
+const mists = [];
+for (let i = 0; i < 18; i++) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+  s.userData = { ph: Math.random(), sp: rand(0.04, 0.08), x: C.x0 + 0.4 + Math.random() * (CL - 0.8), z: C.z + (Math.random() - 0.5) * 0.9, sz: rand(0.5, 0.9) };
+  scene.add(s); mists.push(s);
+}
+
+/* ================= 泡沫箱 + 周转筐 ================= */
+function foamBox(x, y, z, ry = 0) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
+  add(new THREE.BoxGeometry(0.9, 0.4, 0.55), toon(P.white), 0, 0.2, 0, g);
+  add(new THREE.BoxGeometry(0.94, 0.06, 0.59), toon(0xe6eef0), 0, 0.43, 0, g);
+}
+function crate(x, y, z, ry = 0, lemons = false) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
+  const b = toon(0x5d8fc6), w = 0.8, d = 0.55, h = 0.38;
+  add(new THREE.BoxGeometry(w, 0.04, d), b, 0, 0.02, 0, g);
+  for (const [sx, sz, px, pz] of [[w, 0.04, 0, d / 2], [w, 0.04, 0, -d / 2], [0.04, d, w / 2, 0], [0.04, d, -w / 2, 0]]) add(new THREE.BoxGeometry(sx, h, sz), b, px, h / 2, pz, g);
+  // 加粗的格栅
+  for (let k = 0; k < 4; k++) add(new THREE.BoxGeometry(0.06, h * 0.55, 0.012), noOutline(toon(0x41709f)), -0.27 + k * 0.18, h * 0.42, d / 2 + 0.022, g, false);
+  if (lemons) for (let k = 0; k < 14; k++) add(new THREE.SphereGeometry(0.07, 10, 8).scale(1.2, 1, 1), toon(0xF3D57A), -0.3 + (k % 5) * 0.15, 0.36 + Math.floor(k / 5) * 0.05, -0.18 + (k % 3) * 0.17, g, false);
+}
+foamBox(10.9, 0, -4.95); foamBox(10.9, 0.46, -4.95, 0.05); foamBox(10.9, 0.92, -4.95, -0.04);
+foamBox(-0.05, 0, -5.25, Math.PI / 2); foamBox(-0.05, 0.46, -5.25, Math.PI / 2);
+crate(-11.2, 0, -3.3, 0.2); crate(-11.2, 0.4, -3.3, 0.15, true); crate(-11.1, 0, -2.4, -0.1);
+crate(11.3, 0, -1.9, Math.PI / 2); crate(11.3, 0.4, -1.9, Math.PI / 2 + 0.08);
+contact(-11.15, -2.85, 1.4, 1.8); contact(11.3, -1.9, 1.0, 1.2); contact(10.9, -4.9, 1.3, 0.9);
+
+/* ================= FishPal（头足类外形，连续轮廓） ================= */
+function makeScreen() {
+  const c = document.createElement('canvas'); c.width = 40; c.height = 30;
+  const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+  const x = c.getContext('2d');
+  const fishPix = ['...oo..', 'o.oooo.', 'ooooeoo', 'o.oooo.', '...oo..'];
+  const s = { tex, flash: 0, partner: 0, last: -1 };
+  const drawFish = (ox, oy, k) => fishPix.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === '.') return; x.fillStyle = ch === 'e' ? '#365264' : '#E5884B'; x.fillRect(ox + i * k, oy + j * k, k, k); }));
+  s.draw = (t) => {
+    const f = Math.floor(t * 5); const key = f * 4 + s.flash * 2 + s.partner; if (key === s.last) return; s.last = key;
+    x.fillStyle = s.flash ? '#D3EDE1' : P.lcd; x.fillRect(0, 0, 40, 30);
+    x.fillStyle = 'rgba(54,82,100,0.08)'; for (let r = 0; r < 30; r += 2) x.fillRect(0, r, 40, 1);   // LCD 扫描纹
+    if (s.flash) {
+      x.fillStyle = '#4A738C';
+      for (const [px, py] of [[4, 4], [33, 5], [5, 23], [33, 23]]) { x.fillRect(px, py - 1, 1, 3); x.fillRect(px - 1, py, 3, 1); }
+      drawFish(10, 8, 3);
+      if (s.partner) { x.fillStyle = '#DA7E83'; x.fillRect(31, 12, 2, 2); x.fillRect(34, 12, 2, 2); x.fillRect(31, 14, 5, 2); x.fillRect(32, 16, 3, 1); }
+    } else {
+      x.fillStyle = '#4A738C'; x.fillRect(0, 26, 40, 1);
+      for (const px of [5, 7, 31, 34]) x.fillRect(px, 21 + ((f + px) % 2), 1, 5);
+      drawFish(((f % 48) - 8), 11 + ((f >> 2) % 2), 1);
+      x.fillStyle = '#4A738C'; x.fillRect(20, 24 - (f % 22), 1, 1); x.fillRect(13, 24 - ((f + 9) % 22), 1, 1);
+      for (let k = 0; k < 3; k++) x.fillRect(2 + k * 3, 2, 2, 2);
+    }
+    tex.needsUpdate = true;
+  };
+  return s;
+}
+const groupLabelTex = canvasTex(128, 40, (x, w, h) => { x.font = 'bold 26px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#365264'; x.fillText('GROUP', w / 2, h / 2 + 1); });
+function taperTube(curve, seg, r0, r1, radial = 12) {
+  const geo = new THREE.TubeGeometry(curve, seg, r0, radial);
+  const p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg, c = curve.getPointAt(t), k = 1 - (1 - r1 / r0) * t;
+    for (let j = 0; j <= radial; j++) { const idx = i * (radial + 1) + j; v.fromBufferAttribute(p, idx).sub(c).multiplyScalar(k).add(c); p.setXYZ(idx, v.x, v.y, v.z); }
+  }
+  geo.computeVertexNormals(); return geo;
+}
+function makeFishPal(screen) {
+  const g = new THREE.Group();
+  const white = toonF(P.white), cap = toonF(P.ice), fin = toonF(P.iceMid), mint = toonF(P.mint), orange = toonF(P.orange), deep = toonF(P.deep);
+  const body = new THREE.Group(); g.add(body);
+  add(new THREE.SphereGeometry(0.42, 40, 28).scale(1, 1.22, 0.86), white, 0, 0.96, 0, body);
+  add(new THREE.SphereGeometry(0.426, 40, 14, 0, Math.PI * 2, 0, Math.PI * 0.3).scale(1, 1.22, 0.87), cap, 0, 0.962, 0, body, false);
+  // 头顶两片鳍，侧面也能读出头足类
+  for (const s of [-1, 1]) { const f = add(new THREE.SphereGeometry(0.2, 18, 10).scale(1, 0.5, 0.2), fin, s * 0.35, 1.33, -0.03, body); f.rotation.z = s * 0.55; }
+  // 连接头部与触手的“裙边”，让外轮廓连续
+  add(new THREE.SphereGeometry(0.3, 32, 16).scale(0.92, 0.45, 0.86), mint, 0, 0.53, 0, body);
+  for (const [px, py, pz] of [[-0.3, 1.02, -0.22], [0.31, 0.86, -0.2], [0.0, 1.16, -0.34]]) {
+    const sp = add(new THREE.SphereGeometry(0.045, 10, 8).scale(1, 1, 0.4), noOutline(toon(P.orange)), px, py, pz, body, false);
+    sp.lookAt(new THREE.Vector3(px * 3, py, pz * 3));
+  }
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.056, 14, 10).scale(1, 1.15, 0.5), noOutline(toon(P.line)), s * 0.2, 1.27, 0.315, body, false);
+    add(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), s * 0.2 + 0.02, 1.3, 0.34, body, false);
+    add(new THREE.SphereGeometry(0.035, 8, 6).scale(1.3, 0.7, 0.4), noOutline(toon(0xF4C0B0)), s * 0.28, 1.18, 0.3, body, false);
+  }
+  // 正面小方屏
+  const rr = new THREE.Shape(); const W = 0.42, H = 0.34, R = 0.07;
+  rr.moveTo(-W / 2 + R, -H / 2); rr.lineTo(W / 2 - R, -H / 2); rr.quadraticCurveTo(W / 2, -H / 2, W / 2, -H / 2 + R); rr.lineTo(W / 2, H / 2 - R); rr.quadraticCurveTo(W / 2, H / 2, W / 2 - R, H / 2); rr.lineTo(-W / 2 + R, H / 2); rr.quadraticCurveTo(-W / 2, H / 2, -W / 2, H / 2 - R); rr.lineTo(-W / 2, -H / 2 + R); rr.quadraticCurveTo(-W / 2, -H / 2, -W / 2 + R, -H / 2);
+  add(new THREE.ExtrudeGeometry(rr, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 }), deep, 0, 0.98, 0.3, body);
+  add(new THREE.PlaneGeometry(0.34, 0.26), noOutline(new THREE.MeshBasicMaterial({ map: screen.tex })), 0, 0.98, 0.367, body, false);
+  // 两颗实体按键：普通键（小、薄荷）+ GROUP 键（大、橙）
+  const b1 = add(new THREE.CylinderGeometry(0.045, 0.05, 0.05, 20), mint, -0.12, 0.72, 0.285, body); b1.rotation.x = Math.PI / 2 - 0.5;
+  const b2 = add(new THREE.CylinderGeometry(0.078, 0.084, 0.065, 24), orange, 0.1, 0.71, 0.282, body); b2.rotation.x = Math.PI / 2 - 0.55;
+  const lbl = add(new THREE.PlaneGeometry(0.15, 0.047), noOutline(new THREE.MeshBasicMaterial({ map: groupLabelTex, transparent: true })), 0.1, 0.615, 0.262, body, false); lbl.rotation.x = -0.7;
+  // 六条渐细的短触手，一条卷成挂绳环
+  const tentacles = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+    const dx = Math.cos(a), dz = Math.sin(a);
+    const pivot = new THREE.Group(); pivot.position.set(dx * 0.22, 0.5, dz * 0.19); body.add(pivot);
+    const L = dz > 0.5 ? 0.78 : 1;
+    const pts = [new THREE.Vector3(-dx * 0.04, 0.06, -dz * 0.04), new THREE.Vector3(dx * 0.08 * L, -0.15 * L, dz * 0.08 * L), new THREE.Vector3(dx * 0.2 * L, -0.31 * L, dz * 0.2 * L),
+      new THREE.Vector3(dx * 0.34 * L, -0.36 * L, dz * 0.34 * L), new THREE.Vector3(dx * 0.42 * L, -0.27 * L, dz * 0.42 * L)];
+    if (k === 4) pts.push(new THREE.Vector3(dx * 0.4 * L, -0.17 * L, dz * 0.4 * L));
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const mat = k % 2 ? fin : cap;
+    add(taperTube(curve, 28, 0.085, 0.045), mat, 0, 0, 0, pivot);
+    const end = curve.getPoint(1);
+    add(new THREE.SphereGeometry(0.045, 12, 8), mat, end.x, end.y, end.z, pivot, false);
+    if (k === 4) {
+      const loop = add(new THREE.TorusGeometry(0.1, 0.024, 10, 28), orange, end.x + dx * 0.02, end.y + 0.09, end.z + dz * 0.02, pivot);
+      loop.rotation.y = -a + Math.PI / 2;
+    }
+    tentacles.push(pivot);
+  }
+  return { g, body, tentacles };
+}
+const screenShow = makeScreen();
+const screenA = makeScreen();
+const screenB = makeScreen();
+const pals = [];
+
+// 底座外侧：放大的手持 FishPal（与场景之间留出明显间隔）
+const pedestal = new THREE.Group(); pedestal.position.set(17.2, -1.1, -0.8); scene.add(pedestal);
+add(new THREE.CylinderGeometry(2.0, 2.15, 0.35, 48), toon(P.deep), 0, 0.17, 0, pedestal);
+add(new THREE.CylinderGeometry(1.85, 1.95, 0.16, 48), toon(0xe9f2f4), 0, 0.43, 0, pedestal);
+add(new THREE.TorusGeometry(1.88, 0.03, 8, 64).rotateX(Math.PI / 2), noOutline(new THREE.MeshBasicMaterial({ color: P.ring })), 0, 0.51, 0, pedestal, false);
+contact(0, 0, 3.2, 3.2, 0.515, pedestal, 0.3);
+const hero = makeFishPal(screenShow); hero.g.scale.setScalar(2.9); pedestal.add(hero.g);
+pals.push(hero);
+
+/* ================= 入口：巨型 FishPal 玩具包装盒 ================= */
+const boxG = new THREE.Group(); boxG.position.set(-8.4, 0, 1.75); boxG.rotation.y = 0.28; scene.add(boxG);
+let giant;
+{
+  const BW = 2.7, BH = 3.9, BD = 1.5;
+  const printTex = canvasTex(256, 384, (x, w, h) => {
+    const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#8BBBD1'); g.addColorStop(1, '#D9EEF3');
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+    x.fillStyle = 'rgba(245,251,248,0.7)'; for (let i = 0; i < 18; i++) { x.beginPath(); x.arc(Math.random() * w, Math.random() * h * 0.7, 3 + Math.random() * 8, 0, Math.PI * 2); x.fill(); }
+    x.strokeStyle = '#F5FBF8'; x.lineWidth = 6; for (let r = 0; r < 3; r++) { x.beginPath(); for (let k = 0; k <= 30; k++) x.lineTo(k * w / 30, h - 60 - r * 26 + Math.sin(k * 0.8 + r) * 8); x.stroke(); }
+  });
+  const sideTex = canvasTex(128, 384, (x, w, h) => {
+    x.fillStyle = '#8BBBD1'; x.fillRect(0, 0, w, h); x.fillStyle = '#F5FBF8';
+    for (let r = 0; r < 6; r++) { x.beginPath(); for (let k = 0; k <= 16; k++) x.lineTo(k * w / 16, 60 + r * 55 + Math.sin(k * 0.9) * 7); x.lineTo(w, 60 + r * 55 + 10); x.lineTo(0, 60 + r * 55 + 10); x.fill(); }
+    x.fillStyle = '#F2A56D'; x.fillRect(0, h - 40, w, 40);
+  });
+  const frame = toon(P.white), side = toon(0xffffff, { map: sideTex });
+  add(new THREE.PlaneGeometry(BW, BH), toon(0xffffff, { map: printTex }), 0, BH / 2, -BD / 2 + 0.02, boxG, false);
+  add(new THREE.BoxGeometry(0.12, BH, BD), side, -BW / 2, BH / 2, 0, boxG);
+  add(new THREE.BoxGeometry(0.12, BH, BD), side, BW / 2, BH / 2, 0, boxG);
+  add(new THREE.BoxGeometry(BW + 0.12, 0.32, BD), toon(P.orange), 0, 0.16, 0, boxG);
+  add(new THREE.BoxGeometry(BW + 0.12, 0.12, BD), frame, 0, BH, 0, boxG);
+  const header = new THREE.Shape(); header.moveTo(-BW / 2 - 0.06, 0); header.lineTo(BW / 2 + 0.06, 0); header.lineTo(BW / 2 + 0.06, 0.35); header.quadraticCurveTo(0, 1.15, -BW / 2 - 0.06, 0.35); header.closePath();
+  const hole = new THREE.Path(); hole.absellipse(0, 0.62, 0.22, 0.07, 0, Math.PI * 2, true); header.holes.push(hole);
+  add(new THREE.ExtrudeGeometry(header, { depth: 0.12, bevelEnabled: false }), toon(P.iceMid), 0, BH + 0.06, BD / 2 - 0.12, boxG);
+  add(new THREE.ExtrudeGeometry(fishShape(0.7, 0.36), { depth: 0.04, bevelEnabled: false }), toon(P.orange), 0, BH + 0.36, BD / 2 + 0.01, boxG);
+  add(new THREE.PlaneGeometry(BW - 0.3, BH - 0.75), noOutline(new THREE.MeshToonMaterial({ color: 0xeefaff, gradientMap: grad, transparent: true, opacity: 0.1, depthWrite: false })), 0, BH / 2 + 0.12, BD / 2 + 0.005, boxG, false);
+  for (const [w, h, px, py] of [[BW + 0.12, 0.3, 0, 0.47], [BW + 0.12, 0.22, 0, BH - 0.17], [0.16, BH, -BW / 2 + 0.02, BH / 2], [0.16, BH, BW / 2 - 0.02, BH / 2]]) add(new THREE.BoxGeometry(w, h, 0.06), frame, px, py, BD / 2, boxG);
+  for (const [ox, w, hgt] of [[-0.75, 0.1, 2.3], [-0.52, 0.04, 1.6]]) { const l = add(new THREE.PlaneGeometry(w, hgt), glassLineMat, ox, 2.2, BD / 2 + 0.01, boxG, false); l.rotation.z = -0.35; }
+  add(new THREE.CylinderGeometry(0.62, 0.7, 0.18, 32), toon(0xe9f2f4), 0, 0.41, -0.05, boxG);
+  giant = makeFishPal(screenShow); giant.g.scale.setScalar(1.85); giant.g.position.set(0, 0.5, -0.05); boxG.add(giant.g);
+  pals.push(giant);
+  const shelf = new THREE.Group(); shelf.position.set(BW / 2 + 0.06, 0, 0); boxG.add(shelf);
+  add(new THREE.BoxGeometry(0.5, 1.9, 1.1), toon(0xe9f2f4), 0.25, 0.95, 0, shelf);
+  for (let r = 0; r < 3; r++) {
+    add(new THREE.BoxGeometry(0.56, 0.05, 1.14), toon(P.iceMid), 0.28, 0.45 + r * 0.55, 0, shelf);
+    for (let k = 0; k < 2; k++) {
+      const mini = makeFishPal(screenShow); mini.g.scale.setScalar(0.32); mini.g.position.set(0.28, 0.445 + r * 0.55, -0.24 + k * 0.48); mini.g.rotation.y = Math.PI / 2 - 0.2; shelf.add(mini.g);
+    }
+  }
+  contact(0.3, 0.1, BW + 1.6, BD + 0.9, 0.012, boxG);
+}
+for (let k = 0; k < 5; k++) {
+  const fp = add(new THREE.ExtrudeGeometry(fishShape(0.36, 0.2), { depth: 0.01, bevelEnabled: false }), noOutline(toon(k % 2 ? P.iceMid : P.orange)), 0, 0, 0, scene, false);
+  fp.rotation.x = -Math.PI / 2; fp.position.set(-6.2 + k * 0.55, 0.012, 1.3 - k * 0.6); fp.rotation.z = Math.atan2(0.6, 0.55) + Math.PI;
+}
+
+/* ================= 人物（肩—肘—腕两段手臂，可做简单 IK） ================= */
+const DOWN = new THREE.Vector3(0, -1, 0);
+const L1 = 0.26, L2 = 0.25;
+function makePerson(o) {
+  const g = new THREE.Group();
+  const skin = toonF(P.skin), shirt = toonF(o.shirt), pants = toonF(o.pants), hairM = toonF(o.hair || 0x3a2f2c), shoe = toonF(o.shoe || P.white);
+  const hs = o.headScale || 1, hipY = 0.78;
+  const legs = [], arms = [], elbows = [], hands = [];
+  for (const s of [-1, 1]) {
+    const p = new THREE.Group(); p.position.set(0.09 * s, hipY, 0); g.add(p);
+    add(new THREE.CapsuleGeometry(0.075, 0.5, 4, 8), pants, 0, -0.36, 0, p);
+    add(new THREE.BoxGeometry(0.15, 0.09, 0.24), shoe, 0, -0.72, 0.04, p);
+    legs.push(p);
+  }
+  add(new THREE.CapsuleGeometry(0.19, 0.36, 4, 10), shirt, 0, 1.08, 0, g);
+  if (o.apron) add(new THREE.BoxGeometry(0.34, 0.75, 0.04), toonF(o.apron), 0, 0.88, 0.19, g);
+  for (const s of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(0.26 * s, 1.34, 0); g.add(sh);
+    add(new THREE.CapsuleGeometry(0.062, 0.16, 4, 8), shirt, 0, -0.13, 0, sh);
+    const el = new THREE.Group(); el.position.y = -L1; sh.add(el);
+    add(new THREE.SphereGeometry(0.058, 8, 6), skin, 0, 0, 0, el, false);
+    add(new THREE.CapsuleGeometry(0.052, 0.15, 4, 8), skin, 0, -0.12, 0, el);
+    const hand = add(new THREE.SphereGeometry(0.066, 10, 8), skin, 0, -L2, 0, el);
+    arms.push(sh); elbows.push(el); hands.push(hand);
+  }
+  const head = new THREE.Group(); head.position.y = 1.62 + (hs - 1) * 0.13; g.add(head);
+  add(new THREE.SphereGeometry(0.17 * hs, 20, 14), skin, 0, 0, 0, head);
+  const hair = add(new THREE.SphereGeometry(0.185 * hs, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.56), hairM, 0, 0.015 * hs, -0.01, head); hair.rotation.x = -0.38;
+  for (const s of [-1, 1]) {
+    add(new THREE.SphereGeometry(0.026 * hs, 8, 6).scale(0.8, 1.25, 0.6), noOutline(toon(P.line)), 0.066 * s * hs, -0.005, 0.152 * hs, head, false);
+    add(new THREE.SphereGeometry(0.022 * hs, 8, 6).scale(1, 0.6, 0.4), noOutline(toon(0xF2B2A6)), 0.1 * s * hs, -0.06 * hs, 0.13 * hs, head, false);
+  }
+  if (o.buns) for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.07 * hs, 10, 8), hairM, 0.15 * s * hs, 0.12 * hs, -0.03, head);
+  if (o.cap) { add(new THREE.SphereGeometry(0.19 * hs, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42), toonF(o.cap), 0, 0.03 * hs, 0, head); add(new THREE.BoxGeometry(0.22 * hs, 0.02, 0.16 * hs), toonF(o.cap), 0, 0.06 * hs, 0.2 * hs, head); }
+  g.scale.setScalar(o.scale || 1);
+  // 默认放松姿态：手肘微弯
+  for (let i = 0; i < 2; i++) { arms[i].rotation.z = (i ? 1 : -1) * 0.08; elbows[i].rotation.x = -0.25; }
+  return { g, legs, arms, elbows, hands, head, s: o.scale || 1 };
+}
+// 两段手臂 IK：让手准确落在世界坐标目标点上；pole 决定手肘朝向
+const _v = new THREE.Vector3(), _ax = new THREE.Vector3(), _q = new THREE.Quaternion();
+function reachArm(p, i, worldTarget, pole) {
+  p.g.updateMatrixWorld(true);
+  const t = p.g.worldToLocal(_v.copy(worldTarget)).sub(p.arms[i].position);
+  const dir = t.clone().normalize();
+  const d = clamp(t.length(), 0.08, L1 + L2 - 0.003);
+  const a1 = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+  _ax.crossVectors(dir, pole).normalize();
+  const upper = dir.clone().applyAxisAngle(_ax, a1);
+  const elbowPos = upper.clone().multiplyScalar(L1);
+  const fore = dir.clone().multiplyScalar(d).sub(elbowPos).normalize();
+  p.arms[i].quaternion.setFromUnitVectors(DOWN, upper);
+  _q.copy(p.arms[i].quaternion).invert();
+  p.elbows[i].quaternion.setFromUnitVectors(DOWN, fore.applyQuaternion(_q));
+}
+
+// —— 两个孩子与手持设备 ——
+const target = standees[1];
+const KID_S = 0.74;
+const kidA = makePerson({ shirt: 0xF6C96B, pants: P.deep, hair: 0x3a2622, scale: KID_S, headScale: 1.5, cap: P.orange });
+const kidB = makePerson({ shirt: P.red, pants: P.iceMid, hair: 0x4a2c22, scale: 0.72, headScale: 1.5, buns: true });
+// A 正对立牌，站在双手刚好能把设备贴到感应盘的位置
+kidA.g.position.set(target.disc.x, 0, target.disc.z + 0.47); kidA.g.rotation.y = Math.PI; scene.add(kidA.g);
+// B 在 A 的右后方，侧身朝向 A 的设备
+kidB.g.position.set(target.disc.x + 0.82, 0, target.disc.z + 0.9);
+kidB.g.rotation.y = Math.atan2((target.disc.x + 0.05) - kidB.g.position.x, (target.disc.z + 0.42) - kidB.g.position.z);
+scene.add(kidB.g);
+contact(kidA.g.position.x, kidA.g.position.z, 0.75, 0.6); contact(kidB.g.position.x, kidB.g.position.z, 0.75, 0.6);
+const DEV_S = 0.3;
+const devA = makeFishPal(screenA); devA.g.scale.setScalar(DEV_S); scene.add(devA.g);
+const devB = makeFishPal(screenB); devB.g.scale.setScalar(DEV_S); scene.add(devB.g);
+pals.push(devA, devB);
+const POLE_L = new THREE.Vector3(-1, -0.8, -0.7).normalize(), POLE_R = new THREE.Vector3(1, -0.8, -0.7).normalize();
+// 把设备放在世界坐标 center（机身中心），屏幕朝向 faceYaw 方向，双手扶住两侧
+function holdDevice(kid, dev, center, faceYaw, tilt = 0) {
+  dev.g.rotation.set(tilt, faceYaw, 0, 'YXZ');
+  dev.g.position.copy(center).add(new THREE.Vector3(0, -0.96 * DEV_S, 0));
+  const side = new THREE.Vector3(Math.cos(faceYaw), 0, -Math.sin(faceYaw));
+  const back = new THREE.Vector3(Math.sin(faceYaw), 0, Math.cos(faceYaw)).multiplyScalar(0.02);
+  // 手位于机身两侧略偏下
+  const hL = center.clone().addScaledVector(side, -0.135).add(new THREE.Vector3(0, -0.05, 0)).add(back);
+  const hR = center.clone().addScaledVector(side, 0.135).add(new THREE.Vector3(0, -0.05, 0)).add(back);
+  // 判断哪只手在哪一侧
+  kid.g.updateMatrixWorld(true);
+  const a0 = kid.arms[0].getWorldPosition(new THREE.Vector3()), a1 = kid.arms[1].getWorldPosition(new THREE.Vector3());
+  const swap = a0.distanceTo(hL) + a1.distanceTo(hR) > a0.distanceTo(hR) + a1.distanceTo(hL);
+  reachArm(kid, 0, swap ? hR : hL, POLE_L);
+  reachArm(kid, 1, swap ? hL : hR, POLE_R);
+}
+
+// —— 成人与鱼贩 ——
+const parent = makePerson({ shirt: 0xE9DCC8, pants: P.deep, hair: 0x2f2a2a });
+parent.g.position.set(-3.5, 0, -1.3); parent.g.rotation.y = Math.atan2(kidA.g.position.x - -3.5, kidA.g.position.z - -1.3); scene.add(parent.g);
+add(new THREE.BoxGeometry(0.3, 0.36, 0.14), toonF(0xD9C3A0), 0, -0.2, 0.05, parent.hands[0]);
+parent.elbows[0].rotation.x = -0.1;
+contact(-3.5, -1.3, 0.8, 0.6);
+const worker = makePerson({ shirt: 0x6F9FC7, pants: P.deep, hair: 0x1f1b22, apron: P.deep, cap: 0x6F9FC7 });
+worker.g.position.set(5.2, 0, -5.0); scene.add(worker.g);
+const worker2 = makePerson({ shirt: 0x6F9FC7, pants: P.deep, hair: 0x5a3b2a, apron: P.deep });
+worker2.g.position.set(9.4, 0, -5.0); scene.add(worker2.g);
+
+/* ================= 触碰 / 双人连线特效 ================= */
+const catchSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(64, 64, (x) => {
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(142,238,255,0.8)'); g.addColorStop(1, 'rgba(142,238,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.fillStyle = '#F2A56D'; x.beginPath(); x.ellipse(28, 32, 14, 9, 0, 0, Math.PI * 2); x.fill(); x.beginPath(); x.moveTo(40, 32); x.lineTo(52, 23); x.lineTo(52, 41); x.fill();
+  x.fillStyle = '#365264'; x.beginPath(); x.arc(21, 30, 2.5, 0, Math.PI * 2); x.fill();
+}), transparent: true, depthWrite: false }));
+catchSprite.scale.setScalar(0.4); catchSprite.visible = false; scene.add(catchSprite);
+const linkSparks = Array.from({ length: 10 }, () => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color: P.ring, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  s.visible = false; scene.add(s); return s;
+});
+
+/* ================= 动画循环 ================= */
+const clock = new THREE.Clock();
+const CYCLE = 6.5;
+const pA = new THREE.Vector3(), pB = new THREE.Vector3(), tmp = new THREE.Vector3();
+const restA = new THREE.Vector3(), touchA = new THREE.Vector3(), cA = new THREE.Vector3(), cB = new THREE.Vector3();
+function animate() {
+  const dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+
+  // 活鱼：速度各不相同，转身连续，偶尔停顿
+  for (const t of tanks) {
+    for (const f of t.fish) {
+      if (f.pause > 0) f.pause -= dt;
+      if (f.p.distanceTo(f.target) < 0.25) {
+        f.target.set(t.cx + (Math.random() - 0.5) * (t.W - 0.9), rand(t.y0, t.y1), t.cz + (Math.random() - 0.5) * (t.D - 0.7));
+        if (Math.random() < 0.35) f.pause = rand(0.6, 1.8);
+      }
+      tmp.subVectors(f.target, f.p);
+      const want = Math.atan2(-tmp.z, tmp.x);
+      let d = want - f.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
+      f.heading += d * Math.min(1, dt * f.turn);
+      const sp = (f.pause > 0 ? 0.15 : 1) * f.speed * (0.5 + 0.5 * Math.cos(d));
+      f.p.x += Math.cos(f.heading) * sp * dt; f.p.z -= Math.sin(f.heading) * sp * dt;
+      f.p.y += clamp(tmp.y, -1, 1) * dt * 0.25;
+      f.p.x = clamp(f.p.x, t.cx - t.W / 2 + 0.35, t.cx + t.W / 2 - 0.35);
+      f.p.z = clamp(f.p.z, t.cz - t.D / 2 + 0.25, t.cz + t.D / 2 - 0.25);
+      f.g.position.set(f.p.x, f.p.y + Math.sin(time * 1.1 + f.ph) * 0.02, f.p.z);
+      f.g.rotation.y = f.heading;
+      f.g.rotation.z = clamp(tmp.y, -0.6, 0.6) * 0.3;
+      f.tail.rotation.y = Math.sin(time * f.tailSp + f.ph) * (f.pause > 0 ? 0.12 : 0.25);
+    }
+    for (const b of t.bubbles) {
+      const u = b.userData;
+      b.position.y += u.sp * dt;
+      b.position.x = u.ox + Math.sin(time * 2.2 + u.ph) * 0.04;
+      b.position.z = u.oz;
+      if (b.position.y > u.top) b.position.y = t.y0 - 0.2 - Math.random() * 0.3;
+    }
+  }
+
+  // 冷雾
+  for (const m of mists) {
+    const u = m.userData; u.ph = (u.ph + dt * u.sp) % 1;
+    m.position.set(u.x + u.ph * 0.35, C.h + 0.28 + u.ph * 0.35, u.z);
+    m.material.opacity = Math.sin(u.ph * Math.PI) * 0.18;
+    m.scale.setScalar(u.sz * (0.8 + u.ph * 0.4));
+  }
+
+  // NFC 环：慢呼吸，亮度变化为主
+  standees.forEach((s, i) => {
+    s.flash = Math.max(0, s.flash - dt * 1.2);
+    const br = 0.5 + 0.5 * Math.sin(time * 1.6 + i * 1.7);
+    s.ringMat.color.set(P.ring).multiplyScalar(0.82 + br * 0.18 + s.flash * 0.15);
+    s.haloMat.opacity = 0.16 + br * 0.2 + s.flash * 0.35;
+  });
+
+  // —— 孩子 A：双手捧着设备，伸手轻触感应盘（停顿后收回）——
+  const p = (time % CYCLE) / CYCLE;
+  const reach = smooth(0.06, 0.24, p) * (1 - smooth(0.52, 0.66, p));
+  kidA.g.updateMatrixWorld(true);
+  restA.set(0, 1.05, 0.36); kidA.g.localToWorld(restA);
+  touchA.copy(target.disc).add(new THREE.Vector3(0, 0.0, 0.11));
+  cA.lerpVectors(restA, touchA, reach);
+  holdDevice(kidA, devA, cA, 0, -0.15 * (1 - reach));     // 屏幕朝向孩子，背面贴向立牌
+  kidA.head.rotation.x = 0.28 + reach * 0.08;
+  kidA.g.position.z = target.disc.z + 0.47 - reach * 0.03;
+  if (p > 0.235 && p < 0.25 && target.flash < 0.5) target.flash = 1;
+  if (p > 0.26 && p < 0.42) {
+    devA.g.getWorldPosition(pA); pA.y += 0.96 * DEV_S + 0.12;
+    const k = smooth(0.26, 0.42, p);
+    catchSprite.visible = true;
+    catchSprite.position.lerpVectors(target.disc, pA, k); catchSprite.position.z += 0.12; catchSprite.position.y += Math.sin(k * Math.PI) * 0.25;
+    catchSprite.scale.setScalar(0.4 * (1 - k * 0.5));
+  } else catchSprite.visible = false;
+  screenA.flash = (p > 0.4 && p < 0.92) ? 1 : 0;
+  screenA.partner = (p > 0.6 && p < 0.92) ? 1 : 0;
+  screenB.flash = (p > 0.64 && p < 0.92) ? 1 : 0;
+  screenB.partner = screenB.flash;
+
+  // —— 孩子 B：举起设备凑向 A 的设备（双人模式）——
+  const lean = smooth(0.48, 0.6, p) * (1 - smooth(0.86, 0.96, p));
+  kidB.g.updateMatrixWorld(true);
+  const bRest = new THREE.Vector3(0.0, 1.06, 0.34); kidB.g.localToWorld(bRest);
+  const bLean = new THREE.Vector3(0.05, 1.14, 0.46); kidB.g.localToWorld(bLean);
+  cB.lerpVectors(bRest, bLean, lean);
+  holdDevice(kidB, devB, cB, kidB.g.rotation.y + Math.PI, -0.12 - lean * 0.15);
+  kidB.g.position.y = lean > 0.95 ? Math.abs(Math.sin(time * 7)) * 0.04 : 0;
+  kidB.head.rotation.x = 0.22;
+  kidB.head.rotation.y = -0.25 * lean;
+
+  // 双人连线：两台设备之间的光点
+  devA.g.getWorldPosition(pA); pA.y += 0.96 * DEV_S;
+  devB.g.getWorldPosition(pB); pB.y += 0.96 * DEV_S;
+  const linkOn = p > 0.6 && p < 0.88;
+  linkSparks.forEach((s, i) => {
+    s.visible = linkOn; if (!linkOn) return;
+    const u = ((i / linkSparks.length) + time * 0.6) % 1;
+    s.position.lerpVectors(pA, pB, u); s.position.y += Math.sin(u * Math.PI) * 0.22;
+    s.material.opacity = Math.sin(u * Math.PI) * 0.8 * smooth(0.6, 0.65, p) * (1 - smooth(0.83, 0.88, p));
+    s.scale.setScalar(0.13 + 0.04 * Math.sin(time * 5 + i));
+  });
+
+  // 成人与鱼贩
+  parent.head.rotation.y = Math.sin(time * 0.4) * 0.15;
+  worker.arms[0].rotation.x = -0.7 + Math.sin(time * 1.6) * 0.18; worker.arms[1].rotation.x = -0.6 + Math.cos(time * 1.3) * 0.15;
+  worker.elbows[0].rotation.x = worker.elbows[1].rotation.x = -0.9;
+  worker.head.rotation.x = 0.3;
+  worker2.arms[1].rotation.x = -0.6 + Math.sin(time * 1.1 + 1) * 0.2; worker2.elbows[1].rotation.x = -0.8;
+  worker2.head.rotation.y = Math.sin(time * 0.45) * 0.35;
+
+  // FishPal：屏幕、触手、展示模型慢速自转
+  screenShow.draw(time); screenA.draw(time); screenB.draw(time + 0.37);
+  for (const pal of pals) pal.tentacles.forEach((tt, i) => { tt.rotation.x = Math.sin(time * 1.2 + i) * 0.08; tt.rotation.z = Math.cos(time * 1.0 + i * 1.3) * 0.07; });
+  hero.g.rotation.y = Math.sin(time * 0.12) * 1.1 + time * 0.12;
+  hero.g.position.y = 0.25 + (1 + Math.sin(time * 0.9)) * 0.03;
+  giant.g.position.y = 0.32 + (1 + Math.sin(time * 1.1)) * 0.02;
+
+  controls.update();
+  effect.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

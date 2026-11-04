@@ -1,0 +1,150 @@
+{
+  "project": "IDEA9202",
+  "orderBasis": "Development sequence inferred from model features and project records; not verified creation dates.",
+  "items": [
+    {
+      "id": 1,
+      "path": "prototypes/01-spatial-study.html",
+      "stage": 1,
+      "kind": "both",
+      "title": "First spatial study",
+      "titleZh": "初步空间研究",
+      "description": "An early shared scene for indoor discovery and outdoor movement.",
+      "descriptionZh": "将室内探索与户外移动放进同一个空间原型。",
+      "tags": [
+        "Scene switching",
+        "Interaction states",
+        "Orbit controls"
+      ],
+      "original": "FishMarket_Interactive_3D(1).html",
+      "bytes": 542193,
+      "sha256": "636a0a7739b7112928720e4c15e5350dcd97d2c84f753fbcbd888573c5e217c7"
+    },
+    {
+      "id": 2,
+      "path": "prototypes/02-bay-diorama.html",
+      "stage": 2,
+      "kind": "gull",
+      "title": "A little world by the bay",
+      "titleZh": "海湾微缩场景",
+      "description": "A visual study of the waterfront, family spectatorship and digital gulls.",
+      "descriptionZh": "探索海湾氛围、家长观察位置与地面海鸥的视觉关系。",
+      "tags": [
+        "Bay atmosphere",
+        "Family context",
+        "Animated diorama"
+      ],
+      "original": "Gull_Shadow_Bay_Diorama(1).html",
+      "bytes": 686006,
+      "sha256": "cafc76f33915b277601291d1100b0b9d27d3a6a8a394647c8adfc31b201f1d5e"
+    },
+    {
+      "id": 3,
+      "path": "prototypes/03-fishpal-diorama.html",
+      "stage": 3,
+      "kind": "fish",
+      "title": "FishPal comes to life",
+      "titleZh": "FishPal 独立交互",
+      "description": "A standalone miniature exploring the device, discovery and two-child sharing.",
+      "descriptionZh": "独立微缩模型，探索设备、发现过程与双人分享。",
+      "tags": [
+        "Handheld device",
+        "Discovery loop",
+        "Shared interaction"
+      ],
+      "original": "fishpal (1).html",
+      "bytes": 57516,
+      "sha256": "e21921fbd06fc7aba54ab2924cd7d496db813d8808a20a7d45a942a85fd43dbc"
+    },
+    {
+      "id": 4,
+      "path": "prototypes/04-gull-interaction.html",
+      "stage": 3,
+      "kind": "gull",
+      "title": "Following a digital shadow",
+      "titleZh": "跟随数字海鸥",
+      "description": "A movement study with responsive shadows, proximity and the early chips effect.",
+      "descriptionZh": "研究海鸥影子、移动与靠近反馈，保留早期薯条效果。",
+      "tags": [
+        "Movement response",
+        "Proximity effect",
+        "Early reward logic"
+      ],
+      "original": "gull-shadow.html",
+      "bytes": 43343,
+      "sha256": "a69ae1c162b96b557c5d918f53b5eab4b12b85b8f0b0635d1f14144e4b5b3a57"
+    },
+    {
+      "id": 5,
+      "path": "prototypes/05-fishpal-real-site.html",
+      "stage": 4,
+      "kind": "fish",
+      "title": "Discovery in the real market",
+      "titleZh": "走入真实鱼市",
+      "description": "A photo-informed retail corner connecting FishPal to stalls and NFC points.",
+      "descriptionZh": "参考场地照片，把 FishPal 与摊位及 NFC 点位结合。",
+      "tags": [
+        "Retail architecture",
+        "NFC stations",
+        "Site integration"
+      ],
+      "original": "FishPal_New_Sydney_RealSite.html",
+      "bytes": 47134,
+      "sha256": "2f916d5f1a0f05ef7c1976997035a00ccab7d8875e948f7e54851a9534104817"
+    },
+    {
+      "id": 6,
+      "path": "prototypes/06-gull-real-site.html",
+      "stage": 4,
+      "kind": "gull",
+      "title": "Play along the waterfront",
+      "titleZh": "海滨空间互动",
+      "description": "A site-specific model of the canopy, dining promenade and ground interaction.",
+      "descriptionZh": "重建屋顶、用餐步道与地面互动之间的空间关系。",
+      "tags": [
+        "Waterfront canopy",
+        "Dining context",
+        "Ground feedback"
+      ],
+      "original": "Gull_Shadow_New_Sydney_RealSite.html",
+      "bytes": 30693,
+      "sha256": "cdbc6b65a300e0f5d5826a27fc20a9edc5fd5953943f9382ee0031f8d934c5ec"
+    },
+    {
+      "id": 7,
+      "path": "prototypes/07-integrated-study.html",
+      "stage": 5,
+      "kind": "both",
+      "title": "Bringing the experiences together",
+      "titleZh": "两种体验的整合",
+      "description": "A unified study with guided scenes, individual and group modes, and device detail.",
+      "descriptionZh": "整合分步场景、单人与多人模式，以及设备细节。",
+      "tags": [
+        "Guided scenes",
+        "Group modes",
+        "Device detail"
+      ],
+      "original": "FishMarket_Interactive_3D (1)(1)(1).html",
+      "bytes": 579681,
+      "sha256": "02d0a46e8aa9625f0a9c962f0e1d07b8d93aef26d04a369216a2da6270cb1c8c"
+    },
+    {
+      "id": 8,
+      "path": "prototypes/08-integrated-refinement.html",
+      "stage": 5,
+      "kind": "both",
+      "title": "A more detailed shared experience",
+      "titleZh": "更精细的整合体验",
+      "description": "A richer integrated model with pixel decoration, hand icons and interactive device controls.",
+      "descriptionZh": "进一步加入像素装饰、手形提示和可交互的设备按钮。",
+      "tags": [
+        "Pixel decoration",
+        "Hand-shaped cues",
+        "Clickable controls"
+      ],
+      "original": "FishMarket_Interactive_3D (2)(1).html",
+      "bytes": 1689807,
+      "sha256": "a2c8657bd608d9a925e3e152bf936934d15d83d1bd9967464e2dee8de33dd66d"
+    }
+  ]
+}
